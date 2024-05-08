@@ -1,0 +1,10 @@
+GOAL: Command-line text editor
+
+TODO:
+    Shortterm:
+        1. Brainstorm what features I should start with
+        2. Map certain input to ASCII escape characters
+
+    Longterm:
+        1. Get a separate text viewer/editor when running program
+        2. Be able to save, make new files, and interact with files (unistd??)

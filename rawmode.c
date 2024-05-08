@@ -3,16 +3,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+#include "global.h"
 #include "rawmode.h"
 
 // Keep original termios to revert back to after disable_raw_mode()
 struct termios orig_termios;
-
-void die(const char *s)
-{
-    perror(s);
-    exit(1);
-}
 
 void disable_raw_mode(void)
 {

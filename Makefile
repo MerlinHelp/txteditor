@@ -3,8 +3,8 @@ PROG	= txteditor
 all:	$(PROG)
 
 # Tell make abt file dependencies
-HEAD    = rawmode.h 
-SRC     = txteditor.c rawmode.c 
+HEAD    = txteditor.h rawmode.h editor_io.h global.h
+SRC     = txteditor.c rawmode.c editor_io.c global.c
 OBJ     = ${SRC:%.c=%.o}
 
 # special libraries (Can be blank)
