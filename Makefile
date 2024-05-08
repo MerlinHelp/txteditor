@@ -1,10 +1,10 @@
 # default make call
-PROG	= main
+PROG	= txteditor
 all:	$(PROG)
 
 # Tell make abt file dependencies
-HEAD    = 
-SRC     = main.c 
+HEAD    = rawmode.h 
+SRC     = txteditor.c rawmode.c 
 OBJ     = ${SRC:%.c=%.o}
 
 # special libraries (Can be blank)
