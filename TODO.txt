@@ -2,8 +2,8 @@ GOAL: Command-line text editor
 
 TODO:
     Shortterm:
-        1. Brainstorm what features I should start with
-        2. Map certain input to ASCII escape characters
+        1. Add backspace, arrow keys, figure out text viewer/editor soon
+        2. Map certain input to ANSI escape codes
 
     Longterm:
         1. Get a separate text viewer/editor when running program
