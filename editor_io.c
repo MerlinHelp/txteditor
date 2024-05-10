@@ -26,7 +26,7 @@ char editor_read_keypress(void)
     return c;
 }
 
-void editor_process_keypress(void)
+int editor_process_keypress(void)
 {
     char c = editor_read_keypress();
     
@@ -42,6 +42,8 @@ void editor_process_keypress(void)
 
     switch (c) {
         case CTRL_KEY('q'):
+            editor_refresh_screen();
+            editor_move_cursor_to_top();
             exit(0);
             break;
         case CTRL_KEY('r'):
@@ -59,6 +61,8 @@ void editor_process_keypress(void)
         default:
             break;
     }
+    
+    return 0;
 }
 
 /*** OUTPUT ***/
@@ -72,6 +76,18 @@ int editor_refresh_screen(void)
         die("write, error in function editor_refresh_screen");
     }
 
+    return 0;
+}
+
+int editor_draw_empty_rows(void)
+{
+    errno = 0;
+
+    for (int i = 0; i < 24; ++i) {
+        if (write(STDOUT_FILENO, "~\r\n", 3) == -1 && errno != 0) {
+            die("write, error in function editor_draw_empty_rows"); 
+        }
+    }
     return 0;
 }
 

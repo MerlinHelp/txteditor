@@ -12,9 +12,11 @@ void start()
     enable_raw_mode();
     editor_refresh_screen();
     editor_move_cursor_to_top();
+    editor_draw_empty_rows();
+    editor_move_cursor_to_top();
 
     while (1) {
-        editor_process_keypress();
+        (void)editor_process_keypress();
     }
     
     return;
