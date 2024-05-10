@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 #include "global.h"
-#include "rawmode.h"
+#include "terminal.h"
 
 // Keep original termios to revert back to after disable_raw_mode()
 struct termios orig_termios;
@@ -76,4 +76,22 @@ void enable_raw_mode(void)
     if ((tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw)) == -1) {
         die("tcsetattr, error in function enable_raw_mode");
     }
+}
+
+// TODO, need to figure out how to get the two dimensions back to the main file.
+int get_terminal_dimensions(char* buf)
+{
+    FILE *in;
+    extern FILE *popen();
+
+    if (!(in = popen("tput cols lines", "r"))) {
+        die("popen, error in function get_terminal_decisions");
+    }
+
+    while (fgets(buf, sizeof(buf), in) != NULL);
+    
+    pclose(in);
+
+    return 0;
+
 }
