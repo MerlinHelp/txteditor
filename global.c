@@ -4,6 +4,8 @@
 
 #include "editor_io.h"
 
+const char *getNumTerminalRows = "tput lines";
+
 void die(const char* s)
 {
     editor_refresh_screen();

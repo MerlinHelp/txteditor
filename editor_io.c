@@ -104,12 +104,12 @@ int editor_move_cursor(int row, int col)
         col = 1;
     }
 
-    char tmpstr[7]; 
-    sprintf(tmpstr, "\x1b[%d;%dH", row, col);
+    char tmpStr[7]; 
+    sprintf(tmpStr, "\x1b[%d;%dH", row, col);
 
     errno = 0;
     // Moves cursor to row argument, col argument
-    if (write(STDOUT_FILENO, tmpstr, 6) == -1 && errno != 0) {
+    if (write(STDOUT_FILENO, tmpStr, 6) == -1 && errno != 0) {
         die("write, error in function editor_move_cursor");
     }
     

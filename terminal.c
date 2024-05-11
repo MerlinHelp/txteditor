@@ -8,12 +8,12 @@
 #include "terminal.h"
 
 // Keep original termios to revert back to after disable_raw_mode()
-struct termios orig_termios;
+struct termios orignalTermios;
 
 void disable_raw_mode(void)
 {
     // Termios func (tcsetattr) to set terminal attributes
-    if ((tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios)) == -1) {
+    if ((tcsetattr(STDIN_FILENO, TCSAFLUSH, &originalTermios)) == -1) {
         die("tcsetattr, error in function disable_raw_mode");
     }
 }
@@ -27,7 +27,7 @@ void enable_raw_mode(void)
     if ((tcgetattr(STDIN_FILENO, &raw)) == -1) {
         die("tcgetattr, error in function enable_raw_mode");
     }
-    if ((tcgetattr(STDIN_FILENO, &orig_termios)) == -1) {
+    if ((tcgetattr(STDIN_FILENO, &originalTermios)) == -1) {
         die("tcgetattr, error in function enable_raw_mode");
     }
 
@@ -79,16 +79,14 @@ void enable_raw_mode(void)
 }
 
 // TODO, need to figure out how to get the two dimensions back to the main file.
-int get_terminal_dimensions(char* buf)
+int get_terminal_dimensions(char* buf, const char* cmd)
 {
     FILE *in;
     extern FILE *popen();
 
-    if (!(in = popen("tput cols lines", "r"))) {
+    if (!(in = popen(cmd, "r"))) {
         die("popen, error in function get_terminal_decisions");
     }
-
-    while (fgets(buf, sizeof(buf), in) != NULL);
     
     pclose(in);
 

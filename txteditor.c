@@ -14,7 +14,9 @@ void start()
     editor_move_cursor_to_top();
 
     char buf[42];
-    (void)get_terminal_dimensions(buf);
+    (void)get_terminal_dimensions(buf, getNumTerminalRows);
+
+    int numTerminalRows = atoi(buf);
     
     editor_draw_empty_rows();
     editor_move_cursor_to_top();
