@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "editor_io.h"
+#include "global.h"
 
 const char *getNumTerminalRows = "tput lines";
 

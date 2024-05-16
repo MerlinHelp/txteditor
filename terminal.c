@@ -8,12 +8,12 @@
 #include "terminal.h"
 
 // Keep original termios to revert back to after disable_raw_mode()
-struct termios orignalTermios;
+struct editorConfig EC;
 
 void disable_raw_mode(void)
 {
     // Termios func (tcsetattr) to set terminal attributes
-    if ((tcsetattr(STDIN_FILENO, TCSAFLUSH, &originalTermios)) == -1) {
+    if ((tcsetattr(STDIN_FILENO, TCSAFLUSH, &EC.originalTermios)) == -1) {
         die("tcsetattr, error in function disable_raw_mode");
     }
 }
@@ -27,7 +27,7 @@ void enable_raw_mode(void)
     if ((tcgetattr(STDIN_FILENO, &raw)) == -1) {
         die("tcgetattr, error in function enable_raw_mode");
     }
-    if ((tcgetattr(STDIN_FILENO, &originalTermios)) == -1) {
+    if ((tcgetattr(STDIN_FILENO, &EC.originalTermios)) == -1) {
         die("tcgetattr, error in function enable_raw_mode");
     }
 
@@ -78,18 +78,41 @@ void enable_raw_mode(void)
     }
 }
 
-// TODO, need to figure out how to get the two dimensions back to the main file.
-int get_terminal_dimensions(char* buf, const char* cmd)
+int get_terminal_dimensions(int *rows, int *cols)
 {
     FILE *in;
     extern FILE *popen();
+    int size = 42;
 
-    if (!(in = popen(cmd, "r"))) {
+    char buf[size];
+
+    if (!(in = popen("tput lines cols", "r"))) {
         die("popen, error in function get_terminal_decisions");
     }
+
+    if (fgets(buf, size - 1, in) == NULL) {
+        return -1;
+    }
+
+    *rows = atoi(buf);
+    
+    if (fgets(buf, size - 1, in) == NULL) {
+        return -1;
+    }
+
+    *cols = atoi(buf);
     
     pclose(in);
 
     return 0;
 
+}
+
+// TODO Finish function
+int get_cursor_position(int *rows, int *cols)
+{
+    *rows = 0;
+    *cols = 0;
+
+    return 0;
 }

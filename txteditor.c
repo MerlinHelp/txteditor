@@ -13,14 +13,12 @@ void start()
     editor_refresh_screen();
     editor_move_cursor_to_top();
 
-    char buf[42];
-    (void)get_terminal_dimensions(buf, getNumTerminalRows);
+    if (get_terminal_dimensions(&EC.screenrows, &EC.screencols) == -1) {
+        die("error in function get_terminal_dimensions");
+    }
 
-    int numTerminalRows = atoi(buf);
-    
     editor_draw_empty_rows();
     editor_move_cursor_to_top();
-
 
     while (1) {
         (void)editor_process_keypress();

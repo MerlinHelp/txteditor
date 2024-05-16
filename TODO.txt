@@ -3,8 +3,11 @@ GOAL: Command-line text editor
 TODO:
     Shortterm:
         1. Add backspace, arrow keys, figure out text viewer/editor soon
-        2. TODO ITEM IN terminal.c:81
-
+        2. TODO ITEM IN editor_io.c:108 (Fix not being able to go backwards/bind
+        arrow keys)
+            * I think We can not go backwards because nothing is written on
+            * screen so it assumes that it has reached the end
+        3. TODO ITEM IN terminal.c:111 (Finish get_cursor_position function)
     Longterm:
         1. Get a separate text viewer/editor when running program
         2. Be able to save, make new files, and interact with files (unistd??)

@@ -6,7 +6,7 @@
 
 void disable_raw_mode(void);
 void enable_raw_mode(void);
-int get_terminal_dimensions(char*);
+int get_terminal_dimensions(int*, int*);
 
 #endif
 
