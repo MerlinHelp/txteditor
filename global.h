@@ -5,6 +5,7 @@
 #define GLOBAL_FUNCS
 
 void die(const char*);
+int num_places(int);
 
 #endif
 

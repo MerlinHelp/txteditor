@@ -18,6 +18,7 @@ int editor_move_cursor_up(void);
 int editor_move_cursor_left(void);
 int editor_move_cursor_down(void);
 int editor_move_cursor_right(void);
+int print_cursor_position(void);
 
 #endif
 
