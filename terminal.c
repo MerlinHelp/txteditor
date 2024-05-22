@@ -109,7 +109,7 @@ int get_terminal_dimensions(int *rows, int *cols)
 }
 
 // TODO Finish function
-int get_cursor_position(int *rows, int *cols)
+int get_cursor_position(int *rows, int *cols, int *size)
 {
     char buf[32];
     unsigned int i = 0;
@@ -130,6 +130,8 @@ int get_cursor_position(int *rows, int *cols)
     }
 
     buf[i] = '\0';
+
+    *size = i;
 
     if (buf[0] != '\x1b' || buf[1] != '[') {
         return -1;

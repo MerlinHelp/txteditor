@@ -150,11 +150,9 @@ int editor_process_keypress(void)
 
 /*** OUTPUT ***/
 
-// TODO FIX FUCNTION: need to write cursor position/buf char arr until null
-// character appears -> change num of bytes to write??
 int print_cursor_position(void)
 {
-    int size = num_places(EC.screenrows) + num_places(EC.screencols) + 2;
+    int *size = malloc(sizeof(*size));
     int *row = malloc(sizeof(*row));
     if (row == NULL) {
         free(row);
@@ -166,13 +164,13 @@ int print_cursor_position(void)
         return -1;
     }
 
-    get_cursor_position(row, col);
+    get_cursor_position(row, col, size);
 
-    char buf[size];
+    char buf[*size];
     sprintf(buf, "%d,%d", *row, *col);
 
     // printf("%s\r\n", buf);
-    if (write(STDOUT_FILENO, buf, size) != size) {
+    if (write(STDOUT_FILENO, buf, *size - 1) != *size - 1) {
         free(row);
         free(col);
         die("write, error in function print_cursor_function");
