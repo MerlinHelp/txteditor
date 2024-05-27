@@ -91,13 +91,13 @@ int get_terminal_dimensions(int *rows, int *cols)
     }
 
     if (fgets(buf, size - 1, in) == NULL) {
-        return -1;
+        die("fgets, error in function get_terminal_dimensions");
     }
 
     *rows = atoi(buf);
     
     if (fgets(buf, size - 1, in) == NULL) {
-        return -1;
+        die("fgets, error in function get_terminal_dimensions");
     }
 
     *cols = atoi(buf);

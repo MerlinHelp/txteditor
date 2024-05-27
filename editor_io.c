@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "editor_io.h"
@@ -10,6 +11,7 @@
 
 int printKeysMode = 0;
 int currEditingMode = VIEW;
+typedef struct abuf abuf;
 
 /*** INPUT ***/
 
@@ -42,21 +44,19 @@ void editor_view_mode(char c)
     switch (c) {
         /*** CTRL CMDS ***/
         case CTRL_KEY('q'):
-            editor_refresh_screen();
-            editor_move_cursor_to_top();
+            editor_reset_screen();
             exit(0);
             break;
         case CTRL_KEY('r'):
             editor_refresh_screen();
-            editor_move_cursor_to_top();
             break;
         case CTRL_KEY('p'):
             printKeysMode ^= 0x01;
             editor_refresh_screen();
-            editor_move_cursor_to_top();
             break;
         case CTRL_KEY('e'):
             currEditingMode ^= 0x01;
+            printKeysMode = 0;
             break;
         case CTRL_KEY('c'):
             (void)print_cursor_position();
@@ -92,21 +92,15 @@ void editor_edit_mode(char c)
     switch (c) {
         /*** CTRL CMDS ***/
         case CTRL_KEY('q'):
-            editor_refresh_screen();
-            editor_move_cursor_to_top();
+            editor_reset_screen();
             exit(0);
             break;
         case CTRL_KEY('r'):
             editor_refresh_screen();
-            editor_move_cursor_to_top();
-            break;
-        case CTRL_KEY('p'):
-            printKeysMode ^= 0x01;
-            editor_refresh_screen();
-            editor_move_cursor_to_top();
             break;
         case CTRL_KEY('e'):
             currEditingMode ^= 0x01;
+            printKeysMode = 0;
             break;
 
         // TODO MAP ARROW KEYS WHEN IN EDITING MODE
@@ -150,6 +144,19 @@ int editor_process_keypress(void)
 
 /*** OUTPUT ***/
 
+
+void ab_append(abuf *ab, const char *s, int len) {
+  char *new = realloc(ab->b, ab->len + len);
+  if (new == NULL) return;
+  memcpy(&new[ab->len], s, len);
+  ab->b = new;
+  ab->len += len;
+}
+
+void ab_free(abuf *ab) {
+  free(ab->b);
+}
+
 int print_cursor_position(void)
 {
     int *size = malloc(sizeof(*size));
@@ -181,31 +188,54 @@ int print_cursor_position(void)
     return 0;
 }
 
-int editor_refresh_screen(void)
+int editor_reset_screen(void)
 {
-    errno = 0;
+    abuf ab = ABUF_INIT;
 
-    // Clears everything
-    if (write(STDOUT_FILENO, "\x1b[2J", 4) == -1 && errno != 0) {
-        die("write, error in function editor_refresh_screen");
+    ab_append(&ab, "\x1b[2J", 4);
+    ab_append(&ab, "\x1b[H", 3);
+
+    errno = 0;
+    if (write(STDOUT_FILENO, ab.b, ab.len) != ab.len && errno != 0) {
+        die("write, error in editor_reset_screen");
     }
+
+    ab_free(&ab);
 
     return 0;
 }
 
-int editor_draw_empty_rows()
+int editor_refresh_screen(void)
 {
+
+    // Clears everything
+    abuf ab = ABUF_INIT;
+
+    ab_append(&ab, "\x1b[2J", 4);
+    ab_append(&ab, "\x1b[H", 3);
+
+    editor_draw_empty_rows(&ab);
+
+    ab_append(&ab, "\x1b[H", 3);
+
     errno = 0;
+    if (write(STDOUT_FILENO, ab.b, ab.len) != ab.len && errno != 0) {
+        die("write, error in editor_refresh_screen");
+    }
 
+    ab_free(&ab);
+
+
+    return 0;
+}
+
+int editor_draw_empty_rows(abuf *ab)
+{
     for (int i = 0; i < EC.screenrows - 1; ++i) {
-        if (write(STDOUT_FILENO, "~\r\n", 3) == -1 && errno != 0) {
-            die("write, error in function editor_draw_empty_rows"); 
-        }
+        ab_append(ab, "~\r\n", 3);
     }
+    ab_append(ab, "~", 1);
 
-    if (write(STDOUT_FILENO, "~\r", 3) == -1 && errno != 0) {
-        die("write, error in function editor_draw_empty_rows"); 
-    }
     return 0;
 }
 
