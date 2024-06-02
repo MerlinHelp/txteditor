@@ -17,21 +17,18 @@ struct abuf {
 #define EDITOR_IO_FUNCS
 
 /*** INPUT ***/
-char editor_read_keypress(void);
+int editor_read_keypress(void);
+int editor_process_cursor_movement(int);
 int editor_process_keypress(void);
 
 /*** OUTPUT ***/
+void ab_append(struct abuf*, const char*, int);
+void ab_free(struct abuf*);
 int editor_empty_screen(void);
 int editor_reset_screen(void);
 int editor_refresh_screen(void);
 int editor_draw_empty_rows(struct abuf*);
-int editor_move_cursor(int, int);
-int editor_move_cursor_to_top(void);
-int editor_move_cursor_next_line(void);
-int editor_move_cursor_up(void);
-int editor_move_cursor_left(void);
-int editor_move_cursor_down(void);
-int editor_move_cursor_right(void);
+int editor_move_cursor(struct abuf*, int, int);
 int print_cursor_position(void);
 
 #endif

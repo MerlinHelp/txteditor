@@ -12,6 +12,8 @@ int num_places(int);
 #ifndef GLOBAL_VARS
 #define GLOBAL_VARS
 extern const char *getNumTerminalRows;
+extern int currEditingMode;
+extern int printKeysMode;
 
 #ifndef TERMIOS_H
 #define TERMIOS_H
@@ -20,8 +22,9 @@ extern const char *getNumTerminalRows;
 
 #endif
 struct editorConfig {
-    int screenrows;
-    int screencols;
+    int csrX, csrY;
+    int screenRows;
+    int screenCols;
     struct termios originalTermios;
 };
 
@@ -49,5 +52,11 @@ extern struct editorConfig EC;
 #define LOWER_CASE_A 0x61
 #define LOWER_CASE_S 0x73
 #define LOWER_CASE_D 0x44
+enum editorKey {
+    ARROW_UP = 1000,
+    ARROW_LEFT,
+    ARROW_DOWN,
+    ARROW_RIGHT
+};
 
 #endif

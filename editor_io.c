@@ -9,13 +9,16 @@
 #include "global.h"
 #include "terminal.h"
 
+#define CHAD_VERSION "0.0.1"
+
+// TODO: Make macros for printKeysMode OR combine the modes together
 int printKeysMode = 0;
 int currEditingMode = VIEW;
 typedef struct abuf abuf;
 
 /*** INPUT ***/
 
-char editor_read_keypress(void)
+int editor_read_keypress(void)
 {
     int nread;
     char c;
@@ -28,16 +31,78 @@ char editor_read_keypress(void)
         }
     }
 
+    if (c == '\x1b') {
+        char seq[3];
+            
+        if (read(STDIN_FILENO, &seq[0], 1) != 1) {
+            return '\x1b';
+        }
+        if (read(STDIN_FILENO, &seq[1], 1) != 1) {
+            return '\x1b';
+        }
+
+        if (seq[0] == '[') {
+            switch (seq[1]) {
+                case 'A':
+                    return ARROW_UP;
+                case 'B':
+                    return ARROW_DOWN;
+                case 'C':
+                    return ARROW_RIGHT;
+                case 'D':
+                    return ARROW_LEFT;
+            }
+        }
+
+        return '\x1b';
+    }
+
     return c;
 }
 
-void editor_view_mode(char c)
+int editor_process_cursor_movement(int key)
+{
+    abuf ab = ABUF_INIT;
+
+    switch (key) {
+        case LOWER_CASE_W:
+        case ARROW_UP:
+            EC.csrY--;
+            break;
+        case LOWER_CASE_A:
+        case ARROW_LEFT:
+            EC.csrX--;
+            break;
+        case LOWER_CASE_S:
+        case ARROW_DOWN:
+            EC.csrY++;
+            break;
+        case LOWER_CASE_D:
+        case ARROW_RIGHT:
+            EC.csrX++;
+            break;
+    }
+    errno = 0;
+    if (write(STDOUT_FILENO, ab.b, ab.len) != ab.len && errno != 0) {
+        die("write, error in function editor_process_cursor_movement");
+    }
+
+    ab_free(&ab);
+
+    return EXIT_SUCCESS;
+}
+
+void editor_view_mode(int c)
 {
     if (printKeysMode == 1) {
         if (iscntrl(c)) {
             (void)printf("%d\r\n", c);
         } else {
             (void)printf("%d ('%c')\r\n", c, c);
+        }
+
+        if (c > 31) {
+            return;
         }
     }
 
@@ -52,10 +117,17 @@ void editor_view_mode(char c)
             break;
         case CTRL_KEY('p'):
             printKeysMode ^= 0x01;
-            editor_refresh_screen();
+            if (printKeysMode == 1) {
+                editor_reset_screen();
+            } else {
+                editor_refresh_screen();
+            }
             break;
         case CTRL_KEY('e'):
             currEditingMode ^= 0x01;
+            if (printKeysMode == 0) {
+                editor_refresh_screen();
+            }
             printKeysMode = 0;
             break;
         case CTRL_KEY('c'):
@@ -63,29 +135,24 @@ void editor_view_mode(char c)
             break;
 
         /*** MOVING ***/
-        case ENTER:
-            editor_move_cursor_next_line();
-            break;
         case LOWER_CASE_W:
-            editor_move_cursor_up();
-            break;
+        case ARROW_UP:
         case LOWER_CASE_A:
-            editor_move_cursor_left();
-            break;
+        case ARROW_LEFT:
         case LOWER_CASE_S:
-            editor_move_cursor_down();
-            break;
+        case ARROW_DOWN:
         case LOWER_CASE_D:
-            editor_move_cursor_right();
+        case ARROW_RIGHT:
+            (void)editor_process_cursor_movement(c);
             break;
         default:
             break;
     }
 }
 
-void editor_edit_mode(char c)
+void editor_edit_mode(int c)
 {
-    if (printKeysMode == 0 && !iscntrl(c)) {
+    if (!iscntrl(c)) {
         (void)write(STDOUT_FILENO, &c, 1);
     }
 
@@ -105,27 +172,20 @@ void editor_edit_mode(char c)
 
         // TODO MAP ARROW KEYS WHEN IN EDITING MODE
         /*** MOVING ***/
-        /* case LOWER_CASE_W:
-            editor_move_cursor_up();
-            break;
-        case LOWER_CASE_A:
-            editor_move_cursor_left();
-            break;
-        case LOWER_CASE_S:
-            editor_move_cursor_down();
-            break;
-        case LOWER_CASE_D:
-            editor_move_cursor_right();
+        case ARROW_UP:
+        case ARROW_LEFT:
+        case ARROW_DOWN:
+        case ARROW_RIGHT:
+            editor_process_cursor_movement(c);
             break;
         default:
             break;
-        */
     }
 }
 
 int editor_process_keypress(void)
 {
-    char c = editor_read_keypress();
+    int c = editor_read_keypress();
     
     switch (currEditingMode) {
         case VIEW:
@@ -211,12 +271,13 @@ int editor_refresh_screen(void)
     // Clears everything
     abuf ab = ABUF_INIT;
 
-    ab_append(&ab, "\x1b[2J", 4);
+    ab_append(&ab, "\x1b[?25l", 6);
     ab_append(&ab, "\x1b[H", 3);
 
     editor_draw_empty_rows(&ab);
 
-    ab_append(&ab, "\x1b[H", 3);
+    editor_move_cursor(&ab, EC.csrY + 1, EC.csrX + 1);
+    ab_append(&ab, "\x1b[?25h", 6);
 
     errno = 0;
     if (write(STDOUT_FILENO, ab.b, ab.len) != ab.len && errno != 0) {
@@ -231,42 +292,51 @@ int editor_refresh_screen(void)
 
 int editor_draw_empty_rows(abuf *ab)
 {
-    for (int i = 0; i < EC.screenrows - 1; ++i) {
-        ab_append(ab, "~\r\n", 3);
+    // Draw empty rows
+    for (int i = 0; i < EC.screenRows; ++i) {
+        ab_append(ab, "~\x1b[K\r\n", 6);
     }
-    ab_append(ab, "~", 1);
+    ab_append(ab, "\x1b[K", 3);
+
+    // Draw welcome message
+    char welcome[80];
+    int welcomelen = snprintf(welcome, sizeof(welcome),
+        "Chad Editor -- version %s", CHAD_VERSION);
+    if (welcomelen > EC.screenCols) {
+        welcomelen = EC.screenCols;
+    }
+
+    int padding = (EC.screenCols - welcomelen) / 2;
+    while (padding--) {
+        ab_append(ab, " ", 1);
+    }
+
+    ab_append(ab, welcome, welcomelen);
 
     return 0;
 }
 
-int editor_move_cursor(int row, int col)
+int editor_move_cursor(abuf *ab, int row, int col)
 {
-    if (row > 100) {
-        row = 100;
+    if (row > EC.screenRows) {
+        row = EC.screenRows;
     } else if (row < 1) {
         row = 1;
     }
-    if (col > 100) {
-        col = 100;
+    if (col > EC.screenCols) {
+        col = EC.screenCols;
     } else if (col < 1) {
         col = 1;
     }
 
-    char tmpStr[7]; 
-    sprintf(tmpStr, "\x1b[%d;%dH", row, col);
+    size_t nbytes = snprintf(NULL, 0, "\x1b[%d;%dH", row, col) + 1;
+    char *buf = malloc(nbytes); 
+    snprintf(buf, nbytes, "\x1b[%d;%dH", row, col);
 
-    errno = 0;
     // Moves cursor to row argument, col argument
-    if (write(STDOUT_FILENO, tmpStr, 6) != 6 && errno != 0) {
-        die("write, error in function editor_move_cursor");
-    }
+    ab_append(ab, buf, nbytes);
     
     return 0;
-}
-
-int editor_move_cursor_to_top(void)
-{
-    return editor_move_cursor(1, 1);
 }
 
 int editor_move_cursor_next_line(void)
@@ -275,54 +345,6 @@ int editor_move_cursor_next_line(void)
     // Move cursor down and to the beginning of a line
     if (write(STDOUT_FILENO, "\x1b[E", 3) != 3 && errno != 0) {
         die("write, error in function editor_move_cursor_next_line");
-    }
-    
-    return 0;
-    
-}
-
-int editor_move_cursor_up(void)
-{
-    errno = 0;
-    // Moves cursor up
-    if (write(STDOUT_FILENO, "\x1b[A", 3) != 3 && errno != 0) {
-        die("write, error in function editor_move_cursor_up");
-    }
-    
-    return 0;
-    
-}
-
-int editor_move_cursor_left(void)
-{
-    errno = 0;
-    // Move cursor left
-    if (write(STDOUT_FILENO, "\x1b[D", 3) != 3 && errno != 0) {
-        die("write, error in function editor_move_cursor_left");
-    }
-    
-    return 0;
-    
-}
-
-int editor_move_cursor_down(void)
-{
-    errno = 0;
-    // Move cursor down
-    if (write(STDOUT_FILENO, "\x1b[B", 3) != 3 && errno != 0) {
-        die("write, error in function editor_move_cursor_down");
-    }
-    
-    return 0;
-    
-}
-
-int editor_move_cursor_right(void)
-{
-    errno = 0;
-    // Move cursor right
-    if (write(STDOUT_FILENO, "\x1b[C", 3) != 3 && errno != 0) {
-        die("write, error in function editor_move_cursor_right");
     }
     
     return 0;

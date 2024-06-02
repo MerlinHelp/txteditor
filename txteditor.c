@@ -12,12 +12,16 @@ typedef struct abuf abuf;
 void start()
 {
     enable_raw_mode();
-    get_terminal_dimensions(&EC.screenrows, &EC.screencols);
+    get_terminal_dimensions(&EC.screenRows, &EC.screenCols);
+    
+    EC.csrX = 0;
+    EC.csrY = 0;
 
     editor_refresh_screen();
 
 
     while (1) {
+        editor_refresh_screen();
         (void)editor_process_keypress();
     }
     

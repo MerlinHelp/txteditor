@@ -9,6 +9,12 @@ TODO:
         arrow keys)
             * I think We can not go backwards because nothing is written on
             * screen so it assumes that it has reached the end
+        4. TODO ITEM IN editor_io.c:14 (Change printKeysMode to have MACROS or
+        to combine with currEditingMode)
+            * I think if we end up combining currEditingMode + printKeysMode,
+            * we can make macros for like VIEW (no print) + VIEW_PRINT
+            * then for view processor, we can if currEditingMode is VIEW_PRINT
+            * print else not, so its all in one var.
     Longterm:
         1. Get a separate text viewer/editor when running program
         2. Be able to save, make new files, and interact with files (unistd??)
