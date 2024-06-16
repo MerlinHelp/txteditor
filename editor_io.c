@@ -62,33 +62,32 @@ int editor_read_keypress(void)
 
 int editor_process_cursor_movement(int key)
 {
-    abuf ab = ABUF_INIT;
-
     switch (key) {
         case LOWER_CASE_W:
         case ARROW_UP:
-            EC.csrY--;
+            if (EC.csrY != 0) {
+                --EC.csrY;
+            }
             break;
         case LOWER_CASE_A:
         case ARROW_LEFT:
-            EC.csrX--;
+            if (EC.csrX != 0) {
+                --EC.csrX;
+            }
             break;
         case LOWER_CASE_S:
         case ARROW_DOWN:
-            EC.csrY++;
+            if (EC.csrY != EC.screenRows - 1) {
+                ++EC.csrY;
+            }
             break;
         case LOWER_CASE_D:
         case ARROW_RIGHT:
-            EC.csrX++;
+            if (EC.csrX != EC.screenCols - 1) {
+                ++EC.csrX;
+            }
             break;
     }
-    errno = 0;
-    if (write(STDOUT_FILENO, ab.b, ab.len) != ab.len && errno != 0) {
-        die("write, error in function editor_process_cursor_movement");
-    }
-
-    ab_free(&ab);
-
     return EXIT_SUCCESS;
 }
 
@@ -278,6 +277,9 @@ int editor_refresh_screen(void)
 
     editor_move_cursor(&ab, EC.csrY + 1, EC.csrX + 1);
     ab_append(&ab, "\x1b[?25h", 6);
+    // char buf[32];
+    // snprintf(buf, sizeof(buf), "%d,%d", EC.csrY + 1, EC.csrX + 1);
+    // ab_append(&ab, buf, strlen(buf);
 
     errno = 0;
     if (write(STDOUT_FILENO, ab.b, ab.len) != ab.len && errno != 0) {
@@ -293,10 +295,9 @@ int editor_refresh_screen(void)
 int editor_draw_empty_rows(abuf *ab)
 {
     // Draw empty rows
-    for (int i = 0; i < EC.screenRows; ++i) {
+    for (int i = 0; i < EC.screenRows - 1; ++i) {
         ab_append(ab, "~\x1b[K\r\n", 6);
     }
-    ab_append(ab, "\x1b[K", 3);
 
     // Draw welcome message
     char welcome[80];
@@ -312,25 +313,15 @@ int editor_draw_empty_rows(abuf *ab)
     }
 
     ab_append(ab, welcome, welcomelen);
+    ab_append(ab, "\x1b[K", 3);
 
     return 0;
 }
 
 int editor_move_cursor(abuf *ab, int row, int col)
 {
-    if (row > EC.screenRows) {
-        row = EC.screenRows;
-    } else if (row < 1) {
-        row = 1;
-    }
-    if (col > EC.screenCols) {
-        col = EC.screenCols;
-    } else if (col < 1) {
-        col = 1;
-    }
-
     size_t nbytes = snprintf(NULL, 0, "\x1b[%d;%dH", row, col) + 1;
-    char *buf = malloc(nbytes); 
+    char buf[nbytes];
     snprintf(buf, nbytes, "\x1b[%d;%dH", row, col);
 
     // Moves cursor to row argument, col argument

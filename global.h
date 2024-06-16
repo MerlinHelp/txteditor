@@ -51,7 +51,7 @@ extern struct editorConfig EC;
 #define LOWER_CASE_W 0x77
 #define LOWER_CASE_A 0x61
 #define LOWER_CASE_S 0x73
-#define LOWER_CASE_D 0x44
+#define LOWER_CASE_D 0x64
 enum editorKey {
     ARROW_UP = 1000,
     ARROW_LEFT,

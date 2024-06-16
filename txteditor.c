@@ -17,8 +17,6 @@ void start()
     EC.csrX = 0;
     EC.csrY = 0;
 
-    editor_refresh_screen();
-
 
     while (1) {
         editor_refresh_screen();

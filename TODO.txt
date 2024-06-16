@@ -5,10 +5,6 @@ TODO:
         1. For all functions that write to the screen, utilize the abuf struct
         and ab_append function newly built to have only 1 write in function. 
         2. Add backspace, arrow keys, figure out text viewer/editor soon
-        3. TODO ITEM IN editor_io.c:108 (Fix not being able to go backwards/bind
-        arrow keys)
-            * I think We can not go backwards because nothing is written on
-            * screen so it assumes that it has reached the end
         4. TODO ITEM IN editor_io.c:14 (Change printKeysMode to have MACROS or
         to combine with currEditingMode)
             * I think if we end up combining currEditingMode + printKeysMode,
