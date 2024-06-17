@@ -21,14 +21,36 @@ extern int printKeysMode;
 #include <termios.h>
 
 #endif
-struct editorConfig {
+
+#ifndef GLOBAL_STRUCT
+#define GLOBAL_STRUCT
+
+typedef struct abuf {
+    char *b;
+    int len;
+} abuf;
+
+#define ABUF_INIT {NULL, 0}
+
+typedef struct erow {
+    int size;
+    char *chars;
+} erow;
+
+typedef struct editorConfig {
     int csrX, csrY;
+    int rowOff;
+    int colOff;
     int screenRows;
     int screenCols;
+    int numRows;
+    erow *rows;
     struct termios originalTermios;
-};
+} editorConfig;
 
-extern struct editorConfig EC;
+extern editorConfig EC;
+
+#endif
 
 #endif
 
@@ -56,7 +78,12 @@ enum editorKey {
     ARROW_UP = 1000,
     ARROW_LEFT,
     ARROW_DOWN,
-    ARROW_RIGHT
+    ARROW_RIGHT,
+    DEL_KEY,
+    HOME_KEY,
+    END_KEY,
+    PAGE_UP,
+    PAGE_DOWN
 };
 
 #endif

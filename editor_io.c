@@ -3,18 +3,69 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #include <unistd.h>
 
-#include "editor_io.h"
 #include "global.h"
+#include "editor_io.h"
 #include "terminal.h"
 
 #define CHAD_VERSION "0.0.1"
+#define LAST_ROW_OFF 1
+#define LAST_COL_OFF 0
 
 // TODO: Make macros for printKeysMode OR combine the modes together
 int printKeysMode = 0;
 int currEditingMode = VIEW;
-typedef struct abuf abuf;
+
+/*** FILE_IO ***/
+
+void editor_append_row(const char *s, size_t len)
+{
+    EC.rows = realloc(EC.rows, sizeof(erow) * (EC.numRows + 1));
+
+    int newIndex = EC.numRows;
+    EC.rows[newIndex].size = len;
+    if ((EC.rows[newIndex].chars = malloc(len + 1)) == NULL) {
+        die("malloc, error in function editor_append_row");
+    }
+
+    memcpy(EC.rows[newIndex].chars, s, len);
+    EC.rows[newIndex].chars[len] = '\0';
+    ++EC.numRows;
+}
+
+void editor_open(const char *filename)
+{
+    FILE *fp = fopen(filename, "r");
+    if (!fp) {
+        die("fopen, error in function editor_open");
+    }
+
+    char *line = NULL;
+    size_t linecap = 0;
+    ssize_t linelen;
+
+    while ((linelen = getline(&line, &linecap, fp)) != EOF) {
+        while (linelen > 0 && (line[linelen - 1] == '\n' ||
+                               line[linelen - 1] == '\r')) {
+            --linelen;
+        }
+        editor_append_row(line, linelen);
+    }
+
+    free(line);
+    fclose(fp);
+    
+    // char *line = "Hello World!\x1b[K\r\n";
+    // ssize_t linelen = 18;
+    // EC.rows.size = linelen;
+    // EC.rows.chars = malloc(sizeof(*EC.row.chars) * (linelen + 1));
+    // memcpy(EC.row.chars, line, linelen);
+    // EC.rows.chars[linelen] = '\0';
+    // EC.numRows = 1;
+}
+
 
 /*** INPUT ***/
 
@@ -42,15 +93,50 @@ int editor_read_keypress(void)
         }
 
         if (seq[0] == '[') {
+            if (seq[1] >= '0' && seq[1] <= '9') {
+                if (read(STDIN_FILENO, &seq[2], 1) != 1) {
+                    return '\x1b';
+                }
+
+                if (seq[2] == '~') {
+                    switch(seq[1]) {
+                        case '1':
+                        case '7':
+                            return HOME_KEY;
+                        case '4':
+                        case '8':
+                            return END_KEY;
+                        case '3':
+                            return DEL_KEY;
+                        case '5': 
+                            return PAGE_UP;
+                        case '6':
+                            return PAGE_DOWN;
+                    }
+                }
+
+            } else {
+                switch (seq[1]) {
+                    case 'A':
+                        return ARROW_UP;
+                    case 'B':
+                        return ARROW_DOWN;
+                    case 'C':
+                        return ARROW_RIGHT;
+                    case 'D':
+                        return ARROW_LEFT;
+                    case 'H':
+                        return HOME_KEY;
+                    case 'F':
+                        return END_KEY;
+                }
+            } 
+        } else if (seq[0] == 'O') {
             switch (seq[1]) {
-                case 'A':
-                    return ARROW_UP;
-                case 'B':
-                    return ARROW_DOWN;
-                case 'C':
-                    return ARROW_RIGHT;
-                case 'D':
-                    return ARROW_LEFT;
+                case 'H':
+                    return HOME_KEY;
+                case 'F':
+                    return END_KEY;
             }
         }
 
@@ -77,17 +163,19 @@ int editor_process_cursor_movement(int key)
             break;
         case LOWER_CASE_S:
         case ARROW_DOWN:
-            if (EC.csrY != EC.screenRows - 1) {
+            if (EC.csrY < EC.numRows && (EC.csrY + 1) - EC.rowOff !=
+                                        EC.screenRows - LAST_ROW_OFF + 1) {
                 ++EC.csrY;
             }
             break;
         case LOWER_CASE_D:
         case ARROW_RIGHT:
-            if (EC.csrX != EC.screenCols - 1) {
+            if ((EC.csrX + 1) - EC.colOff != EC.screenCols - LAST_COL_OFF + 1) {
                 ++EC.csrX;
             }
             break;
     }
+
     return EXIT_SUCCESS;
 }
 
@@ -134,6 +222,22 @@ void editor_view_mode(int c)
             break;
 
         /*** MOVING ***/
+        case PAGE_UP:
+        case PAGE_DOWN: {
+            int times = EC.screenRows;
+            while (times--) {
+                editor_process_cursor_movement(c == PAGE_UP ? ARROW_UP :
+                                               ARROW_DOWN);
+            }
+            break;
+        }
+
+        case HOME_KEY:
+            EC.csrX = 0;
+            break;
+        case END_KEY:
+            EC.csrX = EC.screenCols - 1;
+            break;
         case LOWER_CASE_W:
         case ARROW_UP:
         case LOWER_CASE_A:
@@ -201,8 +305,8 @@ int editor_process_keypress(void)
     return 0;
 }
 
-/*** OUTPUT ***/
 
+/*** OUTPUT ***/
 
 void ab_append(abuf *ab, const char *s, int len) {
   char *new = realloc(ab->b, ab->len + len);
@@ -266,6 +370,7 @@ int editor_reset_screen(void)
 
 int editor_refresh_screen(void)
 {
+    editor_scroll();
 
     // Clears everything
     abuf ab = ABUF_INIT;
@@ -273,9 +378,10 @@ int editor_refresh_screen(void)
     ab_append(&ab, "\x1b[?25l", 6);
     ab_append(&ab, "\x1b[H", 3);
 
-    editor_draw_empty_rows(&ab);
+    editor_draw_rows(&ab);
 
-    editor_move_cursor(&ab, EC.csrY + 1, EC.csrX + 1);
+    editor_move_cursor(&ab, (EC.csrY - EC.rowOff) + 1, 
+                      (EC.csrX - EC.colOff) + 1);
     ab_append(&ab, "\x1b[?25h", 6);
     // char buf[32];
     // snprintf(buf, sizeof(buf), "%d,%d", EC.csrY + 1, EC.csrX + 1);
@@ -292,11 +398,41 @@ int editor_refresh_screen(void)
     return 0;
 }
 
-int editor_draw_empty_rows(abuf *ab)
+void editor_scroll()
 {
-    // Draw empty rows
-    for (int i = 0; i < EC.screenRows - 1; ++i) {
-        ab_append(ab, "~\x1b[K\r\n", 6);
+    if (EC.csrY < EC.rowOff) {
+        EC.rowOff = EC.csrY;
+    }
+    if (EC.csrY >= EC.rowOff + EC.screenRows - LAST_ROW_OFF) {
+        EC.rowOff = EC.csrY - EC.screenRows + 1 + LAST_ROW_OFF;
+    }
+
+    if (EC.csrX < EC.colOff) {
+        EC.colOff = EC.csrX;
+    }
+    if (EC.csrX >= EC.colOff + EC.screenCols - LAST_COL_OFF) {
+        EC.colOff = EC.csrX - EC.screenCols + 1 + LAST_COL_OFF;
+    }
+}
+
+int editor_draw_rows(abuf *ab)
+{
+    // Draw rows
+    for (int y = 0; y < EC.screenRows - 1; ++y) {
+        int filerow = y + EC.rowOff;
+        if (filerow < EC.numRows) {
+            int len = EC.rows[filerow].size - EC.colOff;
+            if (len < 0) {
+                len = 0;
+            }
+            if (len > EC.screenCols) {
+                len = EC.screenCols;
+            }
+            ab_append(ab, &EC.rows[filerow].chars[EC.colOff], len);
+        } else {
+            ab_append(ab, "~", 1);
+        }
+        ab_append(ab, "\x1b[K\r\n", 5);
     }
 
     // Draw welcome message

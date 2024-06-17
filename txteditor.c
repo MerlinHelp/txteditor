@@ -1,3 +1,12 @@
+#ifndef FEATURE_TEST_MACROS
+#define FEATURE_TEST_MACROS
+
+#define _DEFAULT_SOURCE
+#define _BSD_SOURCE
+#define _GNU_SOURCE
+
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -7,28 +16,31 @@
 #include "txteditor.h"
 #include "editor_io.h"
 
-typedef struct abuf abuf;
-
-void start()
+void init_editor_config(void)
 {
-    enable_raw_mode();
-    get_terminal_dimensions(&EC.screenRows, &EC.screenCols);
-    
     EC.csrX = 0;
     EC.csrY = 0;
+    EC.rowOff = 0;
+    EC.colOff = 0;
+    EC.numRows = 0;
+    EC.rows = NULL;
+    
+    get_terminal_dimensions(&EC.screenRows, &EC.screenCols);
+}
 
+int main(int argc, char **argv)
+{
+    enable_raw_mode();
+    init_editor_config();
+
+    if (argc >= 2) {
+        editor_open(*(argv + 1));
+    }
 
     while (1) {
         editor_refresh_screen();
         (void)editor_process_keypress();
     }
-    
-    return;
-}
-
-int main(void)
-{
-    start();
 
     return EXIT_SUCCESS;
 }
