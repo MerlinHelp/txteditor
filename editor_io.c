@@ -148,35 +148,54 @@ int editor_read_keypress(void)
 
 int editor_process_cursor_movement(int key)
 {
+    erow *row = (EC.csrY >= EC.numRows) ? NULL : &EC.rows[EC.csrY];
+
     switch (key) {
         case LOWER_CASE_W:
         case ARROW_UP:
-            if (EC.csrY != 0) {
+            if (EC.csrY > 0) {
                 --EC.csrY;
             }
             break;
         case LOWER_CASE_A:
         case ARROW_LEFT:
-            if (EC.csrX != 0) {
+            if (EC.csrX > 0) {
                 --EC.csrX;
+            } else if (EC.csrY > 0) {
+                --EC.csrY;
+                erow *newRow = (EC.csrY >= EC.numRows) ? NULL : &EC.rows[EC.csrY];
+                if (newRow && newRow->size > 0) {
+                    EC.csrX = newRow->size - 1;
+                }
             }
-            break;
+            return 0;
         case LOWER_CASE_S:
         case ARROW_DOWN:
-            if (EC.csrY < EC.numRows && (EC.csrY + 1) - EC.rowOff !=
-                                        EC.screenRows - LAST_ROW_OFF + 1) {
+            if (EC.csrY < EC.numRows) {
                 ++EC.csrY;
             }
             break;
         case LOWER_CASE_D:
         case ARROW_RIGHT:
-            if ((EC.csrX + 1) - EC.colOff != EC.screenCols - LAST_COL_OFF + 1) {
-                ++EC.csrX;
+            if (row) {
+                if (EC.csrX < row->size - 1) {
+                    ++EC.csrX;
+                } else if (EC.csrY < EC.numRows) {
+                    ++EC.csrY;
+                    EC.csrX = 0;
+                }
             }
-            break;
+            return 0;
     }
 
-    return EXIT_SUCCESS;
+    erow *newRow = (EC.csrY >= EC.numRows) ? NULL : &EC.rows[EC.csrY];
+    if (!newRow || newRow->size == 0) {
+        EC.csrX = 0;
+    } else if (EC.csrX >= newRow->size) {
+        EC.csrX = newRow->size - 1;
+    }
+
+    return 0;
 }
 
 void editor_view_mode(int c)
