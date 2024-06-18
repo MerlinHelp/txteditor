@@ -34,11 +34,14 @@ typedef struct abuf {
 
 typedef struct erow {
     int size;
+    int rsize;
     char *chars;
+    char *render;
 } erow;
 
 typedef struct editorConfig {
     int csrX, csrY;
+    int rdrX;
     int rowOff;
     int colOff;
     int screenRows;

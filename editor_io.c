@@ -13,6 +13,7 @@
 #define CHAD_VERSION "0.0.1"
 #define LAST_ROW_OFF 1
 #define LAST_COL_OFF 0
+#define TAB_STOP 8
 
 // TODO: Make macros for printKeysMode OR combine the modes together
 int printKeysMode = 0;
@@ -20,18 +21,58 @@ int currEditingMode = VIEW;
 
 /*** FILE_IO ***/
 
+void editor_update_row(erow *row)
+{
+    int tabs = 0;
+    for (int i = 0; i < row->size; ++i) {
+        if ((row->chars)[i] == '\t') {
+            ++tabs;
+        }
+    }
+    free(row->render);
+    
+    if ((row->render = malloc(row->size + (tabs * (TAB_STOP - 1)) + 1)) == NULL) {
+        die("malloc, error in function editor_update_row");
+    }
+
+    int idx = 0;
+    for (int i = 0; i < row->size; ++i) {
+        if ((row->chars)[i] == '\t') {
+            do {
+                (row->render)[idx++] = ' ';
+            } while (idx % TAB_STOP != 0);
+        } else {
+            (row->render)[idx++] = (row->chars)[i];
+        }
+    }
+
+    row->render[idx] = '\0';
+    row->rsize = idx;
+}
+
 void editor_append_row(const char *s, size_t len)
 {
     EC.rows = realloc(EC.rows, sizeof(erow) * (EC.numRows + 1));
 
+    errno = 0;
+    if (EC.rows == NULL && errno != 0) {
+        die("realloc, error in function editor_append_row");
+    }
+
     int newIndex = EC.numRows;
-    EC.rows[newIndex].size = len;
-    if ((EC.rows[newIndex].chars = malloc(len + 1)) == NULL) {
+    erow *newRow = &EC.rows[newIndex];
+    newRow->size = len;
+    if ((newRow->chars = malloc(len + 1)) == NULL) {
         die("malloc, error in function editor_append_row");
     }
 
-    memcpy(EC.rows[newIndex].chars, s, len);
-    EC.rows[newIndex].chars[len] = '\0';
+    memcpy(newRow->chars, s, len);
+    (newRow->chars)[len] = '\0';
+
+    newRow->rsize = 0;
+    newRow->render = NULL;
+    editor_update_row(newRow);
+
     ++EC.numRows;
 }
 
@@ -400,7 +441,7 @@ int editor_refresh_screen(void)
     editor_draw_rows(&ab);
 
     editor_move_cursor(&ab, (EC.csrY - EC.rowOff) + 1, 
-                      (EC.csrX - EC.colOff) + 1);
+                      (EC.rdrX - EC.colOff) + 1);
     ab_append(&ab, "\x1b[?25h", 6);
     // char buf[32];
     // snprintf(buf, sizeof(buf), "%d,%d", EC.csrY + 1, EC.csrX + 1);
@@ -417,8 +458,25 @@ int editor_refresh_screen(void)
     return 0;
 }
 
+int editor_csrx_to_rdrx(erow *row, int csrX) {
+    int rx = 0;
+    for (int i = 0; i < csrX; ++i) {
+        if ((row->chars)[i] == '\t') {
+            rx += (TAB_STOP - 1) - (rx % TAB_STOP);
+        }
+        ++rx;
+    }
+    return rx;
+}
+
 void editor_scroll()
 {
+    // Just in case csrY is not in a row, x must then be 0
+    EC.rdrX = 0;
+    if (EC.csrY < EC.numRows) {
+        EC.rdrX = editor_csrx_to_rdrx(&EC.rows[EC.csrY], EC.csrX);
+    }
+
     if (EC.csrY < EC.rowOff) {
         EC.rowOff = EC.csrY;
     }
@@ -426,11 +484,11 @@ void editor_scroll()
         EC.rowOff = EC.csrY - EC.screenRows + 1 + LAST_ROW_OFF;
     }
 
-    if (EC.csrX < EC.colOff) {
-        EC.colOff = EC.csrX;
+    if (EC.rdrX < EC.colOff) {
+        EC.colOff = EC.rdrX;
     }
-    if (EC.csrX >= EC.colOff + EC.screenCols - LAST_COL_OFF) {
-        EC.colOff = EC.csrX - EC.screenCols + 1 + LAST_COL_OFF;
+    if (EC.rdrX >= EC.colOff + EC.screenCols - LAST_COL_OFF) {
+        EC.colOff = EC.rdrX - EC.screenCols + 1 + LAST_COL_OFF;
     }
 }
 
@@ -440,14 +498,14 @@ int editor_draw_rows(abuf *ab)
     for (int y = 0; y < EC.screenRows - 1; ++y) {
         int filerow = y + EC.rowOff;
         if (filerow < EC.numRows) {
-            int len = EC.rows[filerow].size - EC.colOff;
+            int len = EC.rows[filerow].rsize - EC.colOff;
             if (len < 0) {
                 len = 0;
             }
             if (len > EC.screenCols) {
                 len = EC.screenCols;
             }
-            ab_append(ab, &EC.rows[filerow].chars[EC.colOff], len);
+            ab_append(ab, &EC.rows[filerow].render[EC.colOff], len);
         } else {
             ab_append(ab, "~", 1);
         }

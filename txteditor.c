@@ -20,6 +20,7 @@ void init_editor_config(void)
 {
     EC.csrX = 0;
     EC.csrY = 0;
+    EC.rdrX = 0;
     EC.rowOff = 0;
     EC.colOff = 0;
     EC.numRows = 0;
