@@ -78,6 +78,8 @@ void editor_append_row(const char *s, size_t len)
 
 void editor_open(const char *filename)
 {
+    free(EC.filename);
+    EC.filename = strdup(filename);
     FILE *fp = fopen(filename, "r");
     if (!fp) {
         die("fopen, error in function editor_open");
@@ -98,13 +100,6 @@ void editor_open(const char *filename)
     free(line);
     fclose(fp);
     
-    // char *line = "Hello World!\x1b[K\r\n";
-    // ssize_t linelen = 18;
-    // EC.rows.size = linelen;
-    // EC.rows.chars = malloc(sizeof(*EC.row.chars) * (linelen + 1));
-    // memcpy(EC.row.chars, line, linelen);
-    // EC.rows.chars[linelen] = '\0';
-    // EC.numRows = 1;
 }
 
 
@@ -284,6 +279,15 @@ void editor_view_mode(int c)
         /*** MOVING ***/
         case PAGE_UP:
         case PAGE_DOWN: {
+            if (c == PAGE_UP) {
+                EC.csrY = EC.rowOff;
+            } else if (c == PAGE_DOWN) {
+                EC.csrY = EC.rowOff + EC.screenRows - 1;
+                if (EC.csrY >= EC.numRows) {
+                    EC.csrY = EC.numRows - 1;
+                }
+            }
+
             int times = EC.screenRows;
             while (times--) {
                 editor_process_cursor_movement(c == PAGE_UP ? ARROW_UP :
@@ -296,7 +300,9 @@ void editor_view_mode(int c)
             EC.csrX = 0;
             break;
         case END_KEY:
-            EC.csrX = EC.screenCols - 1;
+            if (EC.csrY < EC.numRows) {
+                EC.csrX = EC.rows[EC.csrY].size - 1;
+            }
             break;
         case LOWER_CASE_W:
         case ARROW_UP:
@@ -439,6 +445,7 @@ int editor_refresh_screen(void)
     ab_append(&ab, "\x1b[H", 3);
 
     editor_draw_rows(&ab);
+    editor_draw_status_bar(&ab);
 
     editor_move_cursor(&ab, (EC.csrY - EC.rowOff) + 1, 
                       (EC.rdrX - EC.colOff) + 1);
@@ -456,6 +463,56 @@ int editor_refresh_screen(void)
 
 
     return 0;
+}
+
+void editor_draw_status_bar(abuf *ab)
+{
+    ab_append(ab, "\x1b[7m", 4);
+
+    // Draw welcome message
+    char welcome[80];
+    if (EC.numRows == 0) {
+        int welcomelen = snprintf(welcome, sizeof(welcome),
+            "Chad Editor -- version %s", CHAD_VERSION);
+        if (welcomelen > EC.screenCols) {
+            welcomelen = EC.screenCols;
+        }
+
+        int padding = (EC.screenCols - welcomelen) / 2;
+        while (padding--) {
+            ab_append(ab, " ", 1);
+        }
+
+        ab_append(ab, welcome, welcomelen);
+
+        padding = (EC.screenCols - welcomelen) / 2;
+        while (padding--) {
+            ab_append(ab, " ", 1);
+        }
+
+    } else {
+        char rstatus[80];
+        int fnameLen = snprintf(welcome, sizeof(welcome), "%.20s - %d lines",
+                           EC.filename ? EC.filename : "[No Name]", EC.numRows);
+        int rlen = snprintf(rstatus, sizeof(welcome), "%d;%d / %d",
+                            EC.csrY, EC.rdrX, EC.numRows);
+        if (fnameLen > EC.screenCols) {
+            fnameLen = EC.screenCols;
+        }
+        ab_append(ab, welcome, fnameLen);
+
+        while (fnameLen < EC.screenCols) {
+            if (EC.screenCols - fnameLen == rlen) {
+                ab_append(ab, rstatus, rlen);
+                break;
+            } else {
+                ab_append(ab, " ", 1);
+                ++fnameLen;
+            }
+        }
+    }
+    ab_append(ab, "\x1b[m", 3);
+
 }
 
 int editor_csrx_to_rdrx(erow *row, int csrX) {
@@ -511,22 +568,6 @@ int editor_draw_rows(abuf *ab)
         }
         ab_append(ab, "\x1b[K\r\n", 5);
     }
-
-    // Draw welcome message
-    char welcome[80];
-    int welcomelen = snprintf(welcome, sizeof(welcome),
-        "Chad Editor -- version %s", CHAD_VERSION);
-    if (welcomelen > EC.screenCols) {
-        welcomelen = EC.screenCols;
-    }
-
-    int padding = (EC.screenCols - welcomelen) / 2;
-    while (padding--) {
-        ab_append(ab, " ", 1);
-    }
-
-    ab_append(ab, welcome, welcomelen);
-    ab_append(ab, "\x1b[K", 3);
 
     return 0;
 }

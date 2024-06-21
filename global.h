@@ -48,6 +48,7 @@ typedef struct editorConfig {
     int screenCols;
     int numRows;
     erow *rows;
+    char *filename;
     struct termios originalTermios;
 } editorConfig;
 

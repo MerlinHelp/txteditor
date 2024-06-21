@@ -25,6 +25,7 @@ void init_editor_config(void)
     EC.colOff = 0;
     EC.numRows = 0;
     EC.rows = NULL;
+    EC.filename = NULL;
     
     get_terminal_dimensions(&EC.screenRows, &EC.screenCols);
 }
@@ -39,6 +40,7 @@ int main(int argc, char **argv)
     }
 
     while (1) {
+        get_terminal_dimensions(&EC.screenRows, &EC.screenCols);
         editor_refresh_screen();
         (void)editor_process_keypress();
     }

@@ -21,6 +21,7 @@ void ab_free(abuf*);
 int editor_empty_screen(void);
 int editor_reset_screen(void);
 int editor_refresh_screen(void);
+void editor_draw_status_bar(abuf*);
 void editor_scroll(void);
 int editor_draw_rows(abuf*);
 int editor_move_cursor(abuf*, int, int);

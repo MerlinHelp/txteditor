@@ -13,6 +13,10 @@ TODO:
             * print else not, so its all in one var.
         5. Make it so you can scroll all the way right in editing mode in
         comparison to 1 char left in viewing mode
+        6. BUG: When using End Key (<Fn> + <Right>), you go all the way to end
+        instead of 1 to the left.
+        7. BUG: When resizing window, bottom line does not update its spacings
+        correctly.
     Longterm:
         1. Get a separate text viewer/editor when running program
         2. Be able to save, make new files, and interact with files (unistd??)
