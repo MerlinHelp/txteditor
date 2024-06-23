@@ -21,6 +21,106 @@ int currEditingMode = VIEW;
 
 /*** FILE_IO ***/
 
+// MUST ONLY BE CALLED IN EDIT MODE (currEditingMode)
+void editor_row_insert_char(erow *row, int at, int c)
+{
+    if (at < 0) {
+        at = 0;
+    } else if (at > row->size) {
+        at = row->size;
+    }
+
+    // + 2 to make space for null?, but if null is already gonna be there later
+    // on why do we need to add another null...
+    errno = 0;
+    row->chars = realloc(row->chars, row->size + 2);
+    if (row->chars == NULL && errno != 0) {
+        die("realloc, error in function editor_row_insert_char");
+    }
+
+    errno = 0;
+    memmove(&(row->chars[at + 1]), &(row->chars[at]), row->size - at + 1);
+    if (row->chars == NULL && errno != 0) {
+        die("memmove, error in function editor_row_insert_char");
+    }
+    
+    ++row->size;
+    row->chars[at] = c;
+    editor_update_row(row);
+}
+
+void editor_insert_char(int c)
+{
+    if (EC.csrY == EC.numRows) {
+        editor_append_row("", 0);
+    }
+    editor_row_insert_char(&EC.rows[EC.csrY], EC.csrX, c);
+    ++EC.csrX;
+}
+
+void editor_row_delete_char(erow *row, int at)
+{
+    if (at < 0) {
+        return;
+    } else if (at > row->size) {
+        at = row->size - 1;
+    }
+
+    errno = 0;
+    memmove(&(row->chars[at]), &(row->chars[at + 1]), row->size - at - 1);
+    // TODO: Probably wrong way to ERROR check for memmove, instead look at
+    // memmove docs and check for return val.
+    if (row->chars == NULL && errno != 0) {
+        die("memmove, error in function editor_row_delete_char");
+    }
+
+    errno = 0;
+    row->chars = realloc(row->chars, row->size - 1);
+    if (row->chars == NULL && errno != 0) {
+        die("realloc, error in function editor_row_delete_char");
+    }
+
+    --row->size;
+    editor_update_row(row);
+}
+
+// For deletion functions, we will memmove first and then realloc, since we will
+// lose the end data if we realloc first
+void editor_delete_char()
+{
+    if (EC.csrY < EC.numRows) {
+        if (EC.rows[EC.csrY].size == 0 && EC.csrY > 0) {
+            editor_delete_row(EC.csrY);
+            editor_process_cursor_movement(ARROW_LEFT);
+            return;
+        }
+        if (EC.csrX > 0) {
+            editor_row_delete_char(&EC.rows[EC.csrY], EC.csrX - 1);
+        }
+    }
+
+    --EC.csrX;
+}
+
+void editor_delete_row(int currRow)
+{
+    errno = 0;
+    memmove(&(EC.rows[currRow]), &(EC.rows[currRow + 1]), 
+           (sizeof(erow) * (EC.numRows - currRow - 1)));
+    if (EC.rows == NULL && errno != 0) {
+        die("memmove, error in function editor_delete_row");
+    }
+
+    errno = 0;
+    EC.rows = realloc(EC.rows, sizeof(erow) * (EC.numRows - 1));
+
+    if (EC.rows == NULL && errno != 0) {
+        die("realloc, error in function editor_delete_row");
+    }
+
+    --EC.numRows;
+}
+
 void editor_update_row(erow *row)
 {
     int tabs = 0;
@@ -52,9 +152,9 @@ void editor_update_row(erow *row)
 
 void editor_append_row(const char *s, size_t len)
 {
+    errno = 0;
     EC.rows = realloc(EC.rows, sizeof(erow) * (EC.numRows + 1));
 
-    errno = 0;
     if (EC.rows == NULL && errno != 0) {
         die("realloc, error in function editor_append_row");
     }
@@ -201,7 +301,14 @@ int editor_process_cursor_movement(int key)
                 --EC.csrY;
                 erow *newRow = (EC.csrY >= EC.numRows) ? NULL : &EC.rows[EC.csrY];
                 if (newRow && newRow->size > 0) {
-                    EC.csrX = newRow->size - 1;
+                    switch (currEditingMode) {
+                        case VIEW:
+                            EC.csrX = newRow->size - 1;
+                            break;
+                        case EDIT:
+                            EC.csrX = newRow->size;
+                            break;
+                    }
                 }
             }
             return 0;
@@ -214,7 +321,7 @@ int editor_process_cursor_movement(int key)
         case LOWER_CASE_D:
         case ARROW_RIGHT:
             if (row) {
-                if (EC.csrX < row->size - 1) {
+                if (EC.csrX < row->size - (currEditingMode == VIEW)) {
                     ++EC.csrX;
                 } else if (EC.csrY < EC.numRows) {
                     ++EC.csrY;
@@ -228,7 +335,14 @@ int editor_process_cursor_movement(int key)
     if (!newRow || newRow->size == 0) {
         EC.csrX = 0;
     } else if (EC.csrX >= newRow->size) {
-        EC.csrX = newRow->size - 1;
+        switch (currEditingMode) {
+            case VIEW:
+                EC.csrX = newRow->size - 1;
+                break;
+            case EDIT:
+                EC.csrX = newRow->size;
+                break;
+        }
     }
 
     return 0;
@@ -277,6 +391,71 @@ void editor_view_mode(int c)
             break;
 
         /*** MOVING ***/
+        case LOWER_CASE_W:
+        case ARROW_UP:
+        case LOWER_CASE_A:
+        case ARROW_LEFT:
+        case LOWER_CASE_S:
+        case ARROW_DOWN:
+        case LOWER_CASE_D:
+        case ARROW_RIGHT:
+            (void)editor_process_cursor_movement(c);
+            break;
+        default:
+            break;
+    }
+}
+
+void editor_edit_mode(int c)
+{
+    switch (c) {
+        /*** CTRL CMDS ***/
+        case CTRL_KEY('q'):
+            editor_reset_screen();
+            exit(0);
+            break;
+        case CTRL_KEY('r'):
+            editor_refresh_screen();
+            break;
+        case CTRL_KEY('e'):
+            currEditingMode ^= 0x01;
+            printKeysMode = 0;
+            if (EC.csrX > 0) {
+                --EC.csrX;
+            }
+            break;
+
+        // ENTER aka carriage return
+        case '\r':
+            // TODO
+            break;
+
+        case BACKSPACE:
+        case CTRL_KEY('h'):
+        case DEL_KEY:
+            // TODO
+            editor_delete_char();
+            break;
+
+        // TODO MAP ARROW KEYS WHEN IN EDITING MODE
+        /*** MOVING ***/
+        case ARROW_UP:
+        case ARROW_LEFT:
+        case ARROW_DOWN:
+        case ARROW_RIGHT:
+            editor_process_cursor_movement(c);
+            break;
+        default:
+            editor_insert_char(c);
+            break;
+    }
+}
+
+int editor_process_keypress(void)
+{
+    int c = editor_read_keypress();
+
+    switch (c) {
         case PAGE_UP:
         case PAGE_DOWN: {
             if (c == PAGE_UP) {
@@ -301,60 +480,18 @@ void editor_view_mode(int c)
             break;
         case END_KEY:
             if (EC.csrY < EC.numRows) {
-                EC.csrX = EC.rows[EC.csrY].size - 1;
+                switch (currEditingMode) {
+                    case VIEW:
+                        EC.csrX = EC.rows[EC.csrY].size - 1;
+                        break;
+                    case EDIT:
+                        EC.csrX = EC.rows[EC.csrY].size;
+                        break;
+                }
             }
             break;
-        case LOWER_CASE_W:
-        case ARROW_UP:
-        case LOWER_CASE_A:
-        case ARROW_LEFT:
-        case LOWER_CASE_S:
-        case ARROW_DOWN:
-        case LOWER_CASE_D:
-        case ARROW_RIGHT:
-            (void)editor_process_cursor_movement(c);
-            break;
-        default:
-            break;
+
     }
-}
-
-void editor_edit_mode(int c)
-{
-    if (!iscntrl(c)) {
-        (void)write(STDOUT_FILENO, &c, 1);
-    }
-
-    switch (c) {
-        /*** CTRL CMDS ***/
-        case CTRL_KEY('q'):
-            editor_reset_screen();
-            exit(0);
-            break;
-        case CTRL_KEY('r'):
-            editor_refresh_screen();
-            break;
-        case CTRL_KEY('e'):
-            currEditingMode ^= 0x01;
-            printKeysMode = 0;
-            break;
-
-        // TODO MAP ARROW KEYS WHEN IN EDITING MODE
-        /*** MOVING ***/
-        case ARROW_UP:
-        case ARROW_LEFT:
-        case ARROW_DOWN:
-        case ARROW_RIGHT:
-            editor_process_cursor_movement(c);
-            break;
-        default:
-            break;
-    }
-}
-
-int editor_process_keypress(void)
-{
-    int c = editor_read_keypress();
     
     switch (currEditingMode) {
         case VIEW:

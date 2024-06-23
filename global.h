@@ -79,6 +79,7 @@ extern editorConfig EC;
 #define LOWER_CASE_S 0x73
 #define LOWER_CASE_D 0x64
 enum editorKey {
+    BACKSPACE = 127,
     ARROW_UP = 1000,
     ARROW_LEFT,
     ARROW_DOWN,

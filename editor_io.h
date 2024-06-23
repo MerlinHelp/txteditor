@@ -5,9 +5,16 @@
 #define EDITOR_IO_FUNCS
 
 typedef struct abuf abuf;
+typedef struct erow erow;
 
 /*** FILE_IO ***/
-void editor_append_rows(const char*, size_t);
+void editor_row_insert_char(erow*, int, int);
+void editor_insert_char(int);
+void editor_update_row(erow*);
+void editor_append_row(const char*, size_t);
+void editor_row_delete_char(erow*, int);
+void editor_delete_char();
+void editor_delete_row(int);
 void editor_open(const char*);
 
 /*** INPUT ***/
