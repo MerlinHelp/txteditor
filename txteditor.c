@@ -26,6 +26,8 @@ void init_editor_config(void)
     EC.numRows = 0;
     EC.rows = NULL;
     EC.filename = NULL;
+    EC.statusMessage[0] = '\0';
+    EC.statusMessageTime = 0;
     
     get_terminal_dimensions(&EC.screenRows, &EC.screenCols);
 }
@@ -38,6 +40,8 @@ int main(int argc, char **argv)
     if (argc >= 2) {
         editor_open(*(argv + 1));
     }
+
+    editor_set_status_message("HELP: <Ctrl><S> = save | <Ctrl><Q> = quit");
 
     while (1) {
         get_terminal_dimensions(&EC.screenRows, &EC.screenCols);

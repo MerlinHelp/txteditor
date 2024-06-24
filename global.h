@@ -49,6 +49,8 @@ typedef struct editorConfig {
     int numRows;
     erow *rows;
     char *filename;
+    char statusMessage[80];
+    int statusMessageTime;
     struct termios originalTermios;
 } editorConfig;
 

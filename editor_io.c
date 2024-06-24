@@ -1,9 +1,12 @@
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "global.h"
@@ -20,6 +23,66 @@ int printKeysMode = 0;
 int currEditingMode = VIEW;
 
 /*** FILE_IO ***/
+
+char *editor_rows_to_string(int *buflen)
+{
+    int totlen = 0;
+    for (int i = 0; i < EC.numRows; ++i) {
+        totlen += EC.rows[i].size + 1;
+    }
+
+    *buflen = totlen;
+
+    char *buf = malloc(sizeof(*buf) * (totlen));
+    char *p = buf;
+
+    for (int i = 0; i < EC.numRows; ++i) {
+        memcpy(p, EC.rows[i].chars, EC.rows[i].size);
+        p += EC.rows[i].size;
+        *p = '\n';
+        ++p;
+    }
+
+    return buf;
+}
+
+void editor_save()
+{
+    if (EC.filename == NULL) {
+        return;
+    }
+
+    int len;
+    char *buf = editor_rows_to_string(&len);
+
+    errno = 0;
+    int fd = open(EC.filename, O_RDWR | O_CREAT, 0644);
+    if (fd == -1 && errno != 0) {
+        free(buf);
+        editor_set_status_message("Can't save! I/O error: %s", strerror(errno));
+        die("open, error in function editor_save");
+    }
+
+    errno = 0;
+    if (ftruncate(fd, len) == -1 && errno != 0) {
+        close(fd);
+        free(buf);
+        editor_set_status_message("Can't save! I/O error: %s", strerror(errno));
+        die("ftruncate, error in function editor_save");
+    }
+
+    if (write(fd, buf, len) != len) {
+        close(fd);
+        free(buf);
+        editor_set_status_message("Can't save! I/O error: %s", strerror(errno));
+        die("write, error in function in editor_save");
+    }
+
+    editor_set_status_message("%d bytes written to disk", len);
+
+    close(fd);
+    free(buf);
+}
 
 // MUST ONLY BE CALLED IN EDIT MODE (currEditingMode)
 void editor_row_insert_char(erow *row, int at, int c)
@@ -96,6 +159,8 @@ void editor_delete_char()
         }
         if (EC.csrX > 0) {
             editor_row_delete_char(&EC.rows[EC.csrY], EC.csrX - 1);
+        } else {
+            return;
         }
     }
 
@@ -445,6 +510,11 @@ void editor_edit_mode(int c)
         case ARROW_RIGHT:
             editor_process_cursor_movement(c);
             break;
+
+        case CTRL_KEY('l'):
+        case '\x1b':
+            break;
+
         default:
             editor_insert_char(c);
             break;
@@ -456,6 +526,10 @@ int editor_process_keypress(void)
     int c = editor_read_keypress();
 
     switch (c) {
+        case CTRL_KEY('s'):
+            editor_save();
+            return 0;
+
         case PAGE_UP:
         case PAGE_DOWN: {
             if (c == PAGE_UP) {
@@ -472,12 +546,12 @@ int editor_process_keypress(void)
                 editor_process_cursor_movement(c == PAGE_UP ? ARROW_UP :
                                                ARROW_DOWN);
             }
-            break;
+            return 0;
         }
 
         case HOME_KEY:
             EC.csrX = 0;
-            break;
+            return 0;
         case END_KEY:
             if (EC.csrY < EC.numRows) {
                 switch (currEditingMode) {
@@ -489,8 +563,7 @@ int editor_process_keypress(void)
                         break;
                 }
             }
-            break;
-
+            return 0;
     }
     
     switch (currEditingMode) {
@@ -602,9 +675,33 @@ int editor_refresh_screen(void)
     return 0;
 }
 
+void editor_set_status_message(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(EC.statusMessage, sizeof(EC.statusMessage), fmt, ap);
+    va_end(ap);
+    EC.statusMessageTime = time(NULL);
+}
+
 void editor_draw_status_bar(abuf *ab)
 {
     ab_append(ab, "\x1b[7m", 4);
+
+    if (strlen(EC.statusMessage) != 0) {
+        int msglen = strlen(EC.statusMessage);
+        if (msglen > EC.screenCols - LAST_COL_OFF) {
+            msglen = EC.screenCols - LAST_COL_OFF;
+        }
+        if (msglen && time(NULL) - EC.statusMessageTime < 5) {
+            ab_append(ab, EC.statusMessage, msglen);
+            ab_append(ab, "\x1b[m", 3);
+            return;
+        } else {
+            EC.statusMessage[0] = '\0';
+            EC.statusMessageTime = 0;
+        }
+    }
 
     // Draw welcome message
     char welcome[80];
