@@ -25,6 +25,7 @@ void init_editor_config(void)
     EC.colOff = 0;
     EC.numRows = 0;
     EC.rows = NULL;
+    EC.dirty = 0;
     EC.filename = NULL;
     EC.statusMessage[0] = '\0';
     EC.statusMessageTime = 0;

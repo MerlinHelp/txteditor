@@ -13,7 +13,7 @@ void editor_save(void);
 void editor_row_insert_char(erow*, int, int);
 void editor_insert_char(int);
 void editor_update_row(erow*);
-void editor_append_row(const char*, size_t);
+void editor_insert_row(int, const char*, size_t);
 void editor_row_delete_char(erow*, int);
 void editor_delete_char(void);
 void editor_delete_row(int);

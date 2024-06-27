@@ -48,6 +48,7 @@ typedef struct editorConfig {
     int screenCols;
     int numRows;
     erow *rows;
+    int dirty;
     char *filename;
     char statusMessage[80];
     int statusMessageTime;
@@ -75,13 +76,13 @@ extern editorConfig EC;
 #define CTRL_KEY(k) ((k) & (0x1f))
 
 /** Mv keys **/
-#define ENTER 0x0d
 #define LOWER_CASE_W 0x77
 #define LOWER_CASE_A 0x61
 #define LOWER_CASE_S 0x73
 #define LOWER_CASE_D 0x64
 enum editorKey {
     BACKSPACE = 127,
+    ENTER,
     ARROW_UP = 1000,
     ARROW_LEFT,
     ARROW_DOWN,
