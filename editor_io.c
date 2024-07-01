@@ -96,8 +96,6 @@ void editor_row_insert_char(erow *row, int at, int c)
         at = row->size;
     }
 
-    // + 2 to make space for null?, but if null is already gonna be there later
-    // on why do we need to add another null...
     errno = 0;
     row->chars = realloc(row->chars, row->size + 2);
     if (row->chars == NULL && errno != 0) {
@@ -116,6 +114,16 @@ void editor_row_insert_char(erow *row, int at, int c)
     
     ++EC.dirty;
     
+}
+
+void editor_row_append_string(erow *row, char *s, size_t len)
+{
+    row->chars = realloc(row->chars, row->size + len + 1);
+    memcpy(&(row->chars[row->size]), s, len);
+    row->size += len;
+    row->chars[row->size] = '\0';
+    editor_update_row(row);
+    ++EC.dirty;
 }
 
 void editor_insert_char(int c)
@@ -144,7 +152,7 @@ void editor_row_delete_char(erow *row, int at)
     }
 
     errno = 0;
-    row->chars = realloc(row->chars, row->size - 1);
+    row->chars = realloc(row->chars, row->size);
     if (row->chars == NULL && errno != 0) {
         die("realloc, error in function editor_row_delete_char");
     }
@@ -159,17 +167,22 @@ void editor_row_delete_char(erow *row, int at)
 // lose the end data if we realloc first
 void editor_delete_char()
 {
-    if (EC.csrY < EC.numRows) {
-        if (EC.rows[EC.csrY].size == 0 && EC.csrY > 0) {
-            editor_delete_row(EC.csrY);
-            editor_process_cursor_movement(ARROW_LEFT);
-            return;
-        }
-        if (EC.csrX > 0) {
-            editor_row_delete_char(&EC.rows[EC.csrY], EC.csrX - 1);
-        } else {
-            return;
-        }
+    if (EC.csrY == EC.numRows) {
+        return;
+    }
+    if (EC.csrX == 0 && EC.csrY == 0) {
+        return;
+    }
+
+    erow *row = &(EC.rows[EC.csrY]);
+    if (EC.csrX > 0) {
+        editor_row_delete_char(row, EC.csrX - 1);
+    } else {
+        EC.csrX = EC.rows[EC.csrY - 1].size;
+        editor_row_append_string(&(EC.rows[EC.csrY - 1]), row->chars, row->size);
+        editor_delete_row(EC.csrY);
+        --EC.csrY;
+        return;
     }
 
     --EC.csrX;
@@ -177,8 +190,8 @@ void editor_delete_char()
 
 void editor_free_row(erow *row)
 {
+    free(row->render);
     free(row->chars);
-    free(row);
 }
 
 void editor_delete_row(int currRow)
