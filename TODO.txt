@@ -12,9 +12,8 @@ TODO:
             * print else not, so its all in one var.
         3. BUG: When resizing window, bottom line does not update its spacings
         correctly.
-        4. Make it so delete and backspace delete character after cursor when in
-        view mode
-        5. Make so <Enter> in edit mode moves all text after cursor to a newline
+        4. BUG: When typing text in newline, it adds it to the text before in
+        the previous line
     Longterm:
         1. Get a separate text viewer/editor when running program
         2. Be able to save, make new files, and interact with files (unistd??)

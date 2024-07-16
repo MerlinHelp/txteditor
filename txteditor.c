@@ -16,6 +16,20 @@
 #include "txteditor.h"
 #include "editor_io.h"
 
+void free_editor_config(void)
+{
+    if (EC.filename != NULL) {
+        free(EC.filename);
+        EC.filename = NULL;
+    }
+    for (int i = 0; i < EC.numRows; ++i) {
+        erow *currRow = &EC.rows[i];
+        free(currRow->chars);
+        free(currRow->render);
+    }
+    free(EC.rows);
+}
+
 void init_editor_config(void)
 {
     EC.csrX = 0;
@@ -37,6 +51,7 @@ int main(int argc, char **argv)
 {
     enable_raw_mode();
     init_editor_config();
+    atexit(free_editor_config);
 
     if (argc >= 2) {
         editor_open(*(argv + 1));

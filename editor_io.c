@@ -137,14 +137,11 @@ void editor_insert_char(int c)
 
 void editor_row_delete_char(erow *row, int at)
 {
-    if (at < 0) {
+    if (at < 0 || at >= row->size) {
         return;
-    } else if (at > row->size) {
-        at = row->size - 1;
     }
-
     errno = 0;
-    memmove(&(row->chars[at]), &(row->chars[at + 1]), row->size - at - 1);
+    memmove(&(row->chars[at]), &(row->chars[at + 1]), row->size - at);
     // TODO: Probably wrong way to ERROR check for memmove, instead look at
     // memmove docs and check for return val.
     if (row->chars == NULL && errno != 0) {
@@ -152,10 +149,6 @@ void editor_row_delete_char(erow *row, int at)
     }
 
     errno = 0;
-    row->chars = realloc(row->chars, row->size);
-    if (row->chars == NULL && errno != 0) {
-        die("realloc, error in function editor_row_delete_char");
-    }
 
     --row->size;
     editor_update_row(row);
@@ -177,6 +170,7 @@ void editor_delete_char()
     erow *row = &(EC.rows[EC.csrY]);
     if (EC.csrX > 0) {
         editor_row_delete_char(row, EC.csrX - 1);
+        --EC.csrX;
     } else {
         EC.csrX = EC.rows[EC.csrY - 1].size;
         editor_row_append_string(&(EC.rows[EC.csrY - 1]), row->chars, row->size);
@@ -185,7 +179,6 @@ void editor_delete_char()
         return;
     }
 
-    --EC.csrX;
 }
 
 void editor_free_row(erow *row)
@@ -265,12 +258,12 @@ void editor_insert_row(int at, const char *s, size_t len)
         die("memmove, error in function editor_insert_row");
     }
 
-    erow *newRow = &EC.rows[at];
-    newRow->size = len;
-    if ((newRow->chars = malloc(len + 1)) == NULL) {
+    EC.rows[at].size = len;
+    if ((EC.rows[at].chars = malloc(len + 1)) == NULL) {
         die("malloc, error in function editor_insert_row");
     }
 
+    erow *newRow = &EC.rows[at];
     memcpy(newRow->chars, s, len);
     (newRow->chars)[len] = '\0';
 
@@ -280,6 +273,24 @@ void editor_insert_row(int at, const char *s, size_t len)
 
     ++EC.numRows;
     ++EC.dirty;
+}
+
+void editor_insert_new_line(void)
+{
+    if (EC.csrX == 0) {
+        editor_insert_row(EC.csrY, "", 0);
+    } else {
+        erow *row = &EC.rows[EC.csrY];
+        editor_insert_row(EC.csrY + 1, &(row->chars)[EC.csrX], 
+                                       row->size - EC.csrX);
+        row = &EC.rows[EC.csrY];
+        row->size = EC.csrX;
+        row->chars[row->size] = '\0';
+        editor_update_row(row);
+    }
+
+    ++EC.csrY;
+    EC.csrX = 0;
 }
 
 void editor_open(const char *filename)
@@ -526,19 +537,9 @@ void editor_edit_mode(int c)
 
         // ENTER aka carriage return
         case '\r':
-            editor_insert_row(EC.csrY + 1, "", 0);
-            ++EC.csrY;
+            editor_insert_new_line();
             break;
 
-        case BACKSPACE:
-        case CTRL_KEY('h'):
-        case DEL_KEY:
-            if (currEditingMode == VIEW) {
-                editor_process_cursor_movement(ARROW_RIGHT);
-            }
-            editor_delete_char();
-
-            break;
 
         /*** MOVING ***/
         case ARROW_UP:
@@ -612,6 +613,20 @@ int editor_process_keypress(void)
                         EC.csrX = EC.rows[EC.csrY].size;
                         break;
                 }
+            }
+            return 0;
+        case BACKSPACE:
+        case CTRL_KEY('h'):
+        case DEL_KEY:
+            if (EC.csrX > EC.rows[EC.csrY].size) {
+                return 0;
+            }
+            if (currEditingMode == VIEW) {
+                ++EC.csrX;
+            }
+            editor_delete_char();
+            if (currEditingMode == VIEW) {
+                --EC.csrX;
             }
             return 0;
     }
