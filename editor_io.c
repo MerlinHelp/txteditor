@@ -432,7 +432,7 @@ int editor_process_cursor_movement(int key)
             return 0;
         case LOWER_CASE_S:
         case ARROW_DOWN:
-            if (EC.csrY < EC.numRows) {
+            if (EC.csrY < EC.numRows - 1) {
                 ++EC.csrY;
             }
             break;
@@ -441,7 +441,7 @@ int editor_process_cursor_movement(int key)
             if (row) {
                 if (EC.csrX < row->size - (currEditingMode == VIEW)) {
                     ++EC.csrX;
-                } else if (EC.csrY < EC.numRows) {
+                } else if (EC.csrY < EC.numRows - 1) {
                     ++EC.csrY;
                     EC.csrX = 0;
                 }
@@ -554,7 +554,9 @@ void editor_edit_mode(int c)
             break;
 
         default:
-            editor_insert_char(c);
+            if (!iscntrl(c)) {
+                editor_insert_char(c);   
+            }
             break;
     }
 }
@@ -616,7 +618,8 @@ int editor_process_keypress(void)
             }
             return 0;
         case BACKSPACE:
-        case CTRL_KEY('h'):
+        // Do we want to use <CTRL>+<H> ???
+        // case CTRL_KEY('h'):
         case DEL_KEY:
             if (EC.csrX > EC.rows[EC.csrY].size) {
                 return 0;
@@ -630,6 +633,8 @@ int editor_process_keypress(void)
             }
             return 0;
     }
+
+    quit_times = CHAD_QUIT_TIMES;
     
     switch (currEditingMode) {
         case VIEW:
