@@ -4,7 +4,7 @@
 #ifndef GLOBAL_FUNCS
 #define GLOBAL_FUNCS
 
-void die(const char*);
+void die(const char*, int);
 int num_places(int);
 
 #endif

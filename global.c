@@ -2,22 +2,27 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "editor_io.h"
 #include "global.h"
 
 const char *getNumTerminalRows = "tput lines";
 
-void die(const char* s)
+void die(const char* s, int err)
 {
     editor_refresh_screen();
 
-    perror(s);
+    size_t nbytes = snprintf(NULL, 0, "%s. Errno error: %s", s, strerror(err)) + 1;
+    char buf[nbytes];
+    snprintf(buf, nbytes, "%s. Errno error: %s", s, strerror(err));
+
+    perror(buf);
     exit(1);
 }
 
 /* Helper Function: returns numdigits of an int 
- *     numPlaces(int)
+ *     num_places(int)
  * 
  */
  int num_places (int n) {

@@ -13,8 +13,11 @@ struct editorConfig EC;
 void disable_raw_mode(void)
 {
     // Termios func (tcsetattr) to set terminal attributes
-    if ((tcsetattr(STDIN_FILENO, TCSAFLUSH, &EC.originalTermios)) == -1) {
-        die("tcsetattr, error in function disable_raw_mode");
+
+    errno = 0;
+    if ((tcsetattr(STDIN_FILENO, TCSAFLUSH, &EC.originalTermios)) == -1 && 
+         errno != 0) {
+        die("tcsetattr, error in function disable_raw_mode", errno);
     }
 }
 
@@ -24,11 +27,15 @@ void enable_raw_mode(void)
 
     // Termios func (tcgetattr) to get terminal attributes
     // We check func return for errors
-    if ((tcgetattr(STDIN_FILENO, &raw)) == -1) {
-        die("tcgetattr, error in function enable_raw_mode");
+    errno = 0;
+    if ((tcgetattr(STDIN_FILENO, &raw)) == -1 &&
+         errno != 0) {
+        die("tcgetattr, error in function enable_raw_mode", errno);
     }
-    if ((tcgetattr(STDIN_FILENO, &EC.originalTermios)) == -1) {
-        die("tcgetattr, error in function enable_raw_mode");
+    errno = 0;
+    if ((tcgetattr(STDIN_FILENO, &EC.originalTermios)) == -1 &&
+         errno != 0) {
+        die("tcgetattr, error in function enable_raw_mode", errno);
     }
 
     // stdlib.h func to run disable_raw_mode at program exit
@@ -72,9 +79,10 @@ void enable_raw_mode(void)
     raw.c_cc[VMIN] = 0; // Minimum of 0 bytes, read instantly once there is input
     raw.c_cc[VTIME] = 1; // Maximum time of 0.1s before read times out
 
-
-    if ((tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw)) == -1) {
-        die("tcsetattr, error in function enable_raw_mode");
+    errno = 0;
+    if ((tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw)) == -1 &&
+         errno != 0) {
+        die("tcsetattr, error in function enable_raw_mode", errno);
     }
 }
 
@@ -86,18 +94,21 @@ int get_terminal_dimensions(int *rows, int *cols)
 
     char buf[size];
 
-    if (!(in = popen("tput lines cols", "r"))) {
-        die("popen, error in function get_terminal_decisions");
+    errno = 0;
+    if (!(in = popen("tput lines cols", "r")) && errno != 0) {
+        die("popen, error in function get_terminal_decisions", errno);
     }
 
-    if (fgets(buf, size - 1, in) == NULL) {
-        die("fgets, error in function get_terminal_dimensions");
+    errno = 0;
+    if (fgets(buf, size - 1, in) == NULL && errno != 0) {
+        die("fgets, error in function get_terminal_dimensions", errno);
     }
 
     *rows = atoi(buf);
     
-    if (fgets(buf, size - 1, in) == NULL) {
-        die("fgets, error in function get_terminal_dimensions");
+    errno = 0;
+    if (fgets(buf, size - 1, in) == NULL && errno != 0) {
+        die("fgets, error in function get_terminal_dimensions", errno);
     }
 
     *cols = atoi(buf);

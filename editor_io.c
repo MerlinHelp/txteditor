@@ -61,7 +61,7 @@ void editor_save()
     if (fd == -1 && errno != 0) {
         free(buf);
         editor_set_status_message("Can't save! I/O error: %s", strerror(errno));
-        die("open, error in function editor_save");
+        die("open, error in function editor_save", errno);
     }
 
     errno = 0;
@@ -69,14 +69,14 @@ void editor_save()
         close(fd);
         free(buf);
         editor_set_status_message("Can't save! I/O error: %s", strerror(errno));
-        die("ftruncate, error in function editor_save");
+        die("ftruncate, error in function editor_save", errno);
     }
 
     if (write(fd, buf, len) != len) {
         close(fd);
         free(buf);
         editor_set_status_message("Can't save! I/O error: %s", strerror(errno));
-        die("write, error in function in editor_save");
+        die("write, error in function in editor_save", errno);
     }
 
     editor_set_status_message("%d bytes written to disk", len);
@@ -99,13 +99,13 @@ void editor_row_insert_char(erow *row, int at, int c)
     errno = 0;
     row->chars = realloc(row->chars, row->size + 2);
     if (row->chars == NULL && errno != 0) {
-        die("realloc, error in function editor_row_insert_char");
+        die("realloc, error in function editor_row_insert_char", errno);
     }
 
     errno = 0;
     memmove(&(row->chars[at + 1]), &(row->chars[at]), row->size - at + 1);
     if (row->chars == NULL && errno != 0) {
-        die("memmove, error in function editor_row_insert_char");
+        die("memmove, error in function editor_row_insert_char", errno);
     }
     
     ++row->size;
@@ -145,7 +145,7 @@ void editor_row_delete_char(erow *row, int at)
     // TODO: Probably wrong way to ERROR check for memmove, instead look at
     // memmove docs and check for return val.
     if (row->chars == NULL && errno != 0) {
-        die("memmove, error in function editor_row_delete_char");
+        die("memmove, error in function editor_row_delete_char", errno);
     }
 
     errno = 0;
@@ -194,14 +194,14 @@ void editor_delete_row(int currRow)
     memmove(&(EC.rows[currRow]), &(EC.rows[currRow + 1]), 
            (sizeof(erow) * (EC.numRows - currRow - 1)));
     if (EC.rows == NULL && errno != 0) {
-        die("memmove, error in function editor_delete_row");
+        die("memmove, error in function editor_delete_row", errno);
     }
 
     errno = 0;
     EC.rows = realloc(EC.rows, sizeof(erow) * (EC.numRows - 1));
 
     if (EC.rows == NULL && errno != 0) {
-        die("realloc, error in function editor_delete_row");
+        die("realloc, error in function editor_delete_row", errno);
     }
 
     --EC.numRows;
@@ -219,7 +219,7 @@ void editor_update_row(erow *row)
     free(row->render);
     
     if ((row->render = malloc(row->size + (tabs * (TAB_STOP - 1)) + 1)) == NULL) {
-        die("malloc, error in function editor_update_row");
+        die("malloc, error in function editor_update_row", errno);
     }
 
     int idx = 0;
@@ -248,19 +248,19 @@ void editor_insert_row(int at, const char *s, size_t len)
     EC.rows = realloc(EC.rows, sizeof(erow) * (EC.numRows + 1));
 
     if (EC.rows == NULL && errno != 0) {
-        die("realloc, error in function editor_insert_row");
+        die("realloc, error in function editor_insert_row", errno);
     }
 
     errno = 0;
     memmove(&(EC.rows[at + 1]), &(EC.rows[at]), 
         sizeof(erow) * (EC.numRows - at));
     if (EC.rows == NULL && errno != 0) {
-        die("memmove, error in function editor_insert_row");
+        die("memmove, error in function editor_insert_row", errno);
     }
 
     EC.rows[at].size = len;
     if ((EC.rows[at].chars = malloc(len + 1)) == NULL) {
-        die("malloc, error in function editor_insert_row");
+        die("malloc, error in function editor_insert_row", errno);
     }
 
     erow *newRow = &EC.rows[at];
@@ -299,7 +299,7 @@ void editor_open(const char *filename)
     EC.filename = strdup(filename);
     FILE *fp = fopen(filename, "r");
     if (!fp) {
-        die("fopen, error in function editor_open");
+        die("fopen, error in function editor_open", errno);
     }
 
     char *line = NULL;
@@ -332,7 +332,7 @@ int editor_read_keypress(void)
     // Until 1 byte returned from read() unistd func, keep checking for input
     while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
         if (nread == -1 && errno != EAGAIN) {
-            die("read, error in function editor_read_char");
+            die("read, error in function editor_read_char", errno);
         }
     }
 
@@ -644,7 +644,8 @@ int editor_process_keypress(void)
             editor_edit_mode(c);
             break;
         default:
-            die("non-existent editingMode, error in function editor_process_keypress");
+            die("non-existent editingMode, error in function"
+                 "editor_process_keypress", errno);
             break;            
     }
     
@@ -689,7 +690,7 @@ int print_cursor_position(void)
     if (write(STDOUT_FILENO, buf, *size - 1) != *size - 1) {
         free(row);
         free(col);
-        die("write, error in function print_cursor_function");
+        die("write, error in function print_cursor_function", errno);
     }
 
     free(row);
@@ -706,7 +707,7 @@ int editor_reset_screen(void)
 
     errno = 0;
     if (write(STDOUT_FILENO, ab.b, ab.len) != ab.len && errno != 0) {
-        die("write, error in editor_reset_screen");
+        die("write, error in editor_reset_screen", errno);
     }
 
     ab_free(&ab);
@@ -736,7 +737,7 @@ int editor_refresh_screen(void)
 
     errno = 0;
     if (write(STDOUT_FILENO, ab.b, ab.len) != ab.len && errno != 0) {
-        die("write, error in editor_refresh_screen");
+        die("write, error in editor_refresh_screen", errno);
     }
 
     ab_free(&ab);

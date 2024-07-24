@@ -13,8 +13,5 @@ TODO:
         3. BUG: When resizing window, bottom line does not update its spacings
         correctly.
     Longterm:
-        1. Get a separate text viewer/editor when running program
-        2. Be able to save, make new files, and interact with files (unistd??)
         3. BUG: One can still scroll up to see the past commands/history of the
         terminal, but should not be like that...
-        4. Change die function to use errno return message, (strerror function)
