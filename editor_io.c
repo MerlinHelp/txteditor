@@ -47,10 +47,53 @@ char *editor_rows_to_string(int *buflen)
     return buf;
 }
 
+char *editor_prompt(const char *prompt)
+{
+    size_t bufsz = 128;
+    char *buf = malloc(sizeof(*buf) * bufsz);
+
+    size_t buflen = 0;
+    buf[0] = '\0';
+
+    while (1) {
+        editor_set_status_message(prompt, buf);
+        editor_refresh_screen();
+
+        int c = editor_read_keypress();
+
+        if (c == DEL_KEY || c == BACKSPACE) {
+            if (buflen != 0) {
+                buf[--buflen] = '\0';
+            }
+        } else if (c == '\x1b') {
+            editor_set_status_message("");
+            free(buf);
+            return NULL;
+        } else if (c == '\r') {
+            if (buflen != 0) {
+                editor_set_status_message("");
+                return buf;
+            }
+        } else if (!iscntrl(c) && c < 128) {
+            if (buflen == bufsz - 1) {
+                bufsz *= 2;
+                buf = realloc(buf, bufsz);
+            }
+
+            buf[buflen++] = c;
+            buf[buflen] = '\0';
+        }
+    }
+}
+
 void editor_save()
 {
     if (EC.filename == NULL) {
-        return;
+        EC.filename = editor_prompt("Save as: %s");
+        if (EC.filename == NULL) {
+            editor_set_status_message("Save aborted");
+            return;
+        }
     }
 
     int len;
@@ -237,7 +280,6 @@ void editor_update_row(erow *row)
     row->rsize = idx;
 }
 
-// TODO: CHANGE TO editor_insert_row
 void editor_insert_row(int at, const char *s, size_t len)
 {
     if (at < 0 || at > EC.numRows) {
@@ -297,10 +339,15 @@ void editor_open(const char *filename)
 {
     free(EC.filename);
     EC.filename = strdup(filename);
-    FILE *fp = fopen(filename, "r");
-    if (!fp) {
-        die("fopen, error in function editor_open", errno);
+    FILE *fp;
+    if (file_perm_exists(filename, RD_AC)) {
+        EC.fileExists = 1;
+        file_perm_exists(filename, RDWR_AC);
+    } else {
+        EC.fileExists = 0;
+        return;
     }
+    fp = fopen(filename, "r");
 
     char *line = NULL;
     size_t linecap = 0;
@@ -617,6 +664,14 @@ int editor_process_keypress(void)
                 }
             }
             return 0;
+
+    }
+
+     if (EC.fileExists && (EC.filePerms & WR_AC) != 0x02) {
+         return 0;
+     }
+
+    switch (c) {
         case BACKSPACE:
         // Do we want to use <CTRL>+<H> ???
         // case CTRL_KEY('h'):

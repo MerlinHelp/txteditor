@@ -4,6 +4,7 @@
 #ifndef GLOBAL_FUNCS
 #define GLOBAL_FUNCS
 
+int file_perm_exists(const char*, int);
 void die(const char*, int);
 int num_places(int);
 
@@ -50,6 +51,8 @@ typedef struct editorConfig {
     erow *rows;
     int dirty;
     char *filename;
+    int fileExists;
+    int filePerms;
     char statusMessage[80];
     int statusMessageTime;
     struct termios originalTermios;
@@ -63,6 +66,11 @@ extern editorConfig EC;
 
 #ifndef GLOBAL_MACROS
 #define GLOBAL_MACROS
+
+/*** FILE_PERMS ***/
+#define RD_AC 1
+#define WR_AC 2
+#define RDWR_AC 3
 
 /*** Editor modes ***/
 #define VIEW 0

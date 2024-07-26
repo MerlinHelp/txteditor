@@ -12,6 +12,20 @@ TODO:
             * print else not, so its all in one var.
         3. BUG: When resizing window, bottom line does not update its spacings
         correctly.
+        4. BUG: When running exec file with no args (no filename), it does not
+        print rows of empty file correctly.
+            * This is due to checking for argc >= 2 in main function. However,
+            * if you put in a file name that does not exist, editor_open is
+            * attempted to be called (but file does not exist).
+            * https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c
+            * THANKFULLY, unistd.h has 'access' function, and can check for
+            * read perms (R_OK), write perms (W_OK), exec perms (E_OK), and
+            * existence of file (F_OK).
+            * Apparently, "this is a LBYL (Look Before You Leap) test, but the
+            * reliable way to check whether you're allowed to do something with
+            * a file is EAFP (Easier to Ask Forgiveness than Permission) — that
+            * is, you should try the access you want and check the return
+            * status."
     Longterm:
-        3. BUG: One can still scroll up to see the past commands/history of the
+        1. BUG: One can still scroll up to see the past commands/history of the
         terminal, but should not be like that...

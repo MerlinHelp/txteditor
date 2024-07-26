@@ -53,8 +53,13 @@ int main(int argc, char **argv)
     init_editor_config();
     atexit(free_editor_config);
 
+    // access function from unistd
     if (argc >= 2) {
         editor_open(*(argv + 1));
+    }
+    if (!EC.fileExists) {
+        editor_insert_new_line();
+        --EC.csrY;
     }
 
     editor_set_status_message("HELP: <Ctrl><S> = save | <Ctrl><Q> = quit");
