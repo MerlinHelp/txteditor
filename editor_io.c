@@ -384,7 +384,7 @@ int editor_read_keypress(void)
     }
 
     if (c == '\x1b') {
-        char seq[3];
+        char seq[5];
             
         if (read(STDIN_FILENO, &seq[0], 1) != 1) {
             return '\x1b';
@@ -397,6 +397,27 @@ int editor_read_keypress(void)
             if (seq[1] >= '0' && seq[1] <= '9') {
                 if (read(STDIN_FILENO, &seq[2], 1) != 1) {
                     return '\x1b';
+                }
+                if (seq[1] == '1' && seq[2] == ';') {
+                    if (read(STDIN_FILENO, &seq[3], 1) != 1) {
+                        return '\x1b';
+                    }
+                    if (read(STDIN_FILENO, &seq[4], 1) != 1) {
+                        return '\x1b';
+                    }
+                    if (seq[3] != '5') {
+                        return '\x1b';
+                    }
+                    switch (seq[4]) {
+                        case 'A':
+                            return CTRL_ARROW_UP;
+                        case 'B':
+                            return CTRL_ARROW_DOWN;
+                        case 'C':
+                            return CTRL_ARROW_RIGHT;
+                        case 'D':
+                            return CTRL_ARROW_LEFT;
+                    }
                 }
 
                 if (seq[2] == '~') {
@@ -600,6 +621,10 @@ void editor_edit_mode(int c)
         case '\x1b':
             break;
 
+        case '\t':
+            editor_insert_char('\t');
+            break;
+
         default:
             if (!iscntrl(c)) {
                 editor_insert_char(c);   
@@ -665,6 +690,12 @@ int editor_process_keypress(void)
             }
             return 0;
 
+        // TODO: Decide what to do with <CTRL><Arrow Key>
+        case CTRL_ARROW_UP:
+        case CTRL_ARROW_DOWN:
+        case CTRL_ARROW_RIGHT:
+        case CTRL_ARROW_LEFT:
+            return 0;
     }
 
      if (EC.fileExists && (EC.filePerms & WR_AC) != 0x02) {
